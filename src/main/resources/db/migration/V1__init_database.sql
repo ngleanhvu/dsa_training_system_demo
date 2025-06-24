@@ -1,12 +1,12 @@
 
 create table if not exists topics (
-             topic_id int primary key auto_increment,
-             name varchar(100) not null unique,
-             description varchar(255),
-             color_code varchar(7),
-             status int default 1,
-             created_at datetime default current_timestamp,
-             updated_at datetime default current_timestamp on update current_timestamp
+              topic_id int primary key auto_increment,
+              name varchar(100) not null unique,
+              description varchar(255),
+              color_code varchar(7),
+              status int default 1,
+              created_at datetime default current_timestamp,
+              updated_at datetime default current_timestamp on update current_timestamp
 );
 
 create table if not exists difficulties (
@@ -46,32 +46,32 @@ create table if not exists problem_details (
 );
 
 create table if not exists examples (
-              example_id int primary key auto_increment,
-              input JSON null,
-              output JSON not null,
-              explantation text,
-              problem_id int not null,
-              status int default 1,
-              created_at datetime default current_timestamp,
-              updated_at datetime default current_timestamp on update current_timestamp,
-              foreign key (problem_id) references problems(problem_id)
+             example_id int primary key auto_increment,
+             input JSON null,
+             output JSON not null,
+             explantation text,
+             problem_id int not null,
+             status int default 1,
+             created_at datetime default current_timestamp,
+             updated_at datetime default current_timestamp on update current_timestamp,
+             foreign key (problem_id) references problems(problem_id)
 );
 
 create table if not exists problems_topics (
-                 problem_topic_id int primary key auto_increment,
-                 problem_id int not null,
-                 topic_id int not null,
-                 status int default 1,
-                 created_at datetime default current_timestamp,
-                 updated_at datetime default current_timestamp on update current_timestamp,
-                 foreign key (problem_id) references problems(problem_id),
-                 foreign key (topic_id) references topics(topic_id)
+             problem_topic_id int primary key auto_increment,
+             problem_id int not null,
+             topic_id int not null,
+             status int default 1,
+             created_at datetime default current_timestamp,
+             updated_at datetime default current_timestamp on update current_timestamp,
+             foreign key (problem_id) references problems(problem_id),
+             foreign key (topic_id) references topics(topic_id)
 );
 
 create table if not exists test_cases (
             test_case_id int primary key auto_increment,
-            input JSON,
-            output JSON,
+            input text,
+            output text,
             expected_output JSON,
             problem_id int not null,
             status int default 1,
@@ -86,14 +86,6 @@ create table if not exists programming_languages (
             version VARCHAR(20),
             file_extension VARCHAR(10),
             is_active BOOLEAN DEFAULT TRUE,
-            status int default 1,
-            created_at datetime default current_timestamp,
-            updated_at datetime default current_timestamp on update current_timestamp
-);
-
-create table if not exists problem_status (
-            problem_status_id int primary key auto_increment,
-            name varchar(20),
             status int default 1,
             created_at datetime default current_timestamp,
             updated_at datetime default current_timestamp on update current_timestamp
