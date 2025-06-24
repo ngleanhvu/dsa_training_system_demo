@@ -25,10 +25,6 @@ public class Problem {
     @JoinColumn(name = "difficulty_id", nullable = false)
     private Difficulty difficulty;
 
-    @ManyToOne
-    @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic;
-
     @Column(precision = 5, scale = 2)
     private BigDecimal acceptanceRate = BigDecimal.ZERO;
 
