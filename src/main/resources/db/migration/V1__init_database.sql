@@ -23,18 +23,16 @@ create table if not exists problems (
               slug VARCHAR(200),
               difficulty_id int not null,
               acceptance_rate decimal(5,2) default 0.00,
-              topic_id int not null,
               status int default 1,
               created_at datetime default current_timestamp,
               updated_at datetime default current_timestamp on update current_timestamp,
-              foreign key (topic_id) references topics(topic_id),
               foreign key (difficulty_id) references difficulties(difficulty_id)
 );
 
 create table if not exists problem_details (
               problem_detail_id int primary key auto_increment,
               description text,
-              constraints text,
+              constraints json,
               hints json,
               time_limit int default 1000, -- miliseconds
               memory_limit int default 256, -- MB
@@ -47,8 +45,9 @@ create table if not exists problem_details (
 
 create table if not exists examples (
              example_id int primary key auto_increment,
-             input JSON null,
-             output JSON not null,
+             images  JSON,
+             input text null,
+             output text not null,
              explantation text,
              problem_id int not null,
              status int default 1,
@@ -65,7 +64,8 @@ create table if not exists problems_topics (
              created_at datetime default current_timestamp,
              updated_at datetime default current_timestamp on update current_timestamp,
              foreign key (problem_id) references problems(problem_id),
-             foreign key (topic_id) references topics(topic_id)
+             foreign key (topic_id) references topics(topic_id),
+             unique (topic_id, problem_id)
 );
 
 create table if not exists test_cases (

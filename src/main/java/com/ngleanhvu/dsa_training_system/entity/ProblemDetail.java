@@ -1,13 +1,18 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "problem_details")
+@Table(name = "problem_details")@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProblemDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,7 +21,7 @@ public class ProblemDetail {
     @Lob
     private String description;
 
-    @Lob
+    @Column(columnDefinition = "json")
     private String constraints;
 
     @Column(columnDefinition = "json")

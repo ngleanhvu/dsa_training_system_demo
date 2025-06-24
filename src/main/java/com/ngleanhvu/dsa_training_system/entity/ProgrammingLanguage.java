@@ -1,13 +1,18 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "programming_languages")
+@Table(name = "programming_languages")@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProgrammingLanguage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

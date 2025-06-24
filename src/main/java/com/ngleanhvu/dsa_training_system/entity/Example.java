@@ -1,26 +1,34 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "examples")
+@Table(name = "examples")@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Example {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer exampleId;
 
-    @Column(columnDefinition = "json")
+    @Lob
     private String input;
 
-    @Column(columnDefinition = "json", nullable = false)
+    @Lob
     private String output;
 
     @Lob
     private String explantation;
+
+    @Column(columnDefinition = "json")
+    private String images;
 
     @ManyToOne
     @JoinColumn(name = "problem_id", nullable = false)

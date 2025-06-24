@@ -1,6 +1,7 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -8,6 +9,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "difficulties")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Difficulty {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
