@@ -24,7 +24,7 @@ public class TestCase {
     @Lob
     private String output;
 
-    @Column(columnDefinition = "json")
+    @Lob
     private String expectedOutput;
 
     @ManyToOne

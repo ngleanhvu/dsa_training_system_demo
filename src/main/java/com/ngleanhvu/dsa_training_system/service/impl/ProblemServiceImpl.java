@@ -38,6 +38,7 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = Problem.builder()
                 .title(request.getTitle())
                 .difficulty(difficulty)
+                .status(1)
                 .build();
 
         problemRepo.save(problem);
@@ -68,6 +69,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .description(request.getDescription())
                 .constraints(constraintsJson)
                 .hints(hintsJson)
+                .status(1)
                 .build();
 
         problemDetailRepo.save(problemDetail);

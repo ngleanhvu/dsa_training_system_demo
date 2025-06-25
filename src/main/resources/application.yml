@@ -9,5 +9,14 @@ spring:
     locations: classpath:db/migration
     enabled: true
 
+aws:
+  access_key_id: ${AWS_ACCESS_KEY_ID}
+  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  region: ${AWS_REGION}
+  s3_bucket_name: ${AWS_S3_BUCKET_NAME}
+
+file:
+  max_size: 5242880
+
 server:
   port: 8000
