@@ -13,9 +13,11 @@ import com.ngleanhvu.dsa_training_system.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -31,9 +33,9 @@ public class ExampleServiceImpl implements ExampleService {
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
-    public void createExample(ExampleCreateRequest request, int problemId) throws JsonProcessingException {
+    public Example createExample(ExampleCreateRequest request, int problemId) throws JsonProcessingException {
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
@@ -69,7 +71,7 @@ public class ExampleServiceImpl implements ExampleService {
 
         String imagesJson = imageUrls.isEmpty() ? "" : objectMapper.writeValueAsString(imageUrls);
 
-        Example example = Example.builder()
+        return Example.builder()
                 .input(request.getInput())
                 .output(request.getOutput())
                 .problem(problem)
@@ -77,18 +79,19 @@ public class ExampleServiceImpl implements ExampleService {
                 .images(imagesJson)
                 .build();
 
-        exampleRepo.save(example);
-
     }
 
     @Transactional
     @Override
     public void createExamples(List<ExampleCreateRequest> requests, int problemId) {
 
+        List<Example> examples = new ArrayList<>();
+
         List<CompletableFuture<Void>> tasks = requests.stream()
                 .map(request -> CompletableFuture.runAsync(() -> {
                     try {
-                        this.createExample(request, problemId);
+                        Example e = this.createExample(request, problemId);
+                        examples.add(e);
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException("Failed to create example", e);
                     }
@@ -105,5 +108,7 @@ public class ExampleServiceImpl implements ExampleService {
                 throw new RuntimeException("Exception during example creation", e.getCause());
             }
         }
+
+        exampleRepo.saveAll(examples);
     }
 }
