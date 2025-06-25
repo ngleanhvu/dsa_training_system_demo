@@ -72,7 +72,6 @@ create table if not exists test_cases (
             test_case_id int primary key auto_increment,
             input text,
             output text,
-            expected_output JSON,
             problem_id int not null,
             status int default 1,
             created_at datetime default current_timestamp,

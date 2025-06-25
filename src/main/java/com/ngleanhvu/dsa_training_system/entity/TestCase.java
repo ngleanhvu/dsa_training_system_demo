@@ -17,25 +17,16 @@ public class TestCase {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer testCaseId;
-
     @Lob
     private String input;
-
     @Lob
     private String output;
-
-    @Lob
-    private String expectedOutput;
-
     @ManyToOne
     @JoinColumn(name = "problem_id", nullable = false)
     private Problem problem;
-
     private Integer status = 1;
-
     @CreationTimestamp
     private LocalDateTime createdAt;
-
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 }
