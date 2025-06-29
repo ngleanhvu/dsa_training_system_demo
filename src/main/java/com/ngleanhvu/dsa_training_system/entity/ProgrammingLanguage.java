@@ -26,6 +26,8 @@ public class ProgrammingLanguage {
     @Column(length = 10)
     private String fileExtension;
 
+    private String judge0LanguageId;
+
     private Boolean isActive = true;
 
     private Integer status = 1;

@@ -18,5 +18,9 @@ aws:
 file:
   max_size: 5242880
 
+judge0:
+  api_key: d04506efa8msh718faea26492c69p16ea82jsnbbe88b36948d
+  api_host: judge0-ce.p.rapidapi.com
+
 server:
   port: 8000

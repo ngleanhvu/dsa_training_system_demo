@@ -1,0 +1,53 @@
+version: '3.3'
+
+services:
+  judge0-db:
+    image: postgres:13.3
+    restart: always
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0
+    volumes:
+      - judge0-db:/var/lib/postgresql/data
+
+  judge0-redis:
+    image: redis:latest
+    restart: always
+
+  judge0-api:
+    image: judge0/judge0:1.13.1-extra-dev
+    restart: always
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    environment:
+      DB_HOST: judge0-db
+      DB_PORT: 5432
+      DB_NAME: judge0
+      DB_USER: judge0
+      DB_PASSWORD: judge0
+      REDIS_HOST: judge0-redis
+      REDIS_PORT: 6379
+      MAX_CPU_TIME: 5
+      MAX_REAL_TIME: 10
+      MAX_MEMORY: 128000
+      ENABLE_AUTH: "false"
+      ENABLE_EXECUTOR: "true"
+    ports:
+      - "3000:3000"
+
+  judge0-executor:
+    image: judge0/executor:1.13.0
+    restart: always
+    privileged: true
+    depends_on:
+      - judge0-api
+    environment:
+      API_URL: http://judge0-api:3000
+      CPU_TIME: 5
+      REAL_TIME: 10
+      MEMORY: 128000
+
+volumes:
+  judge0-db:
