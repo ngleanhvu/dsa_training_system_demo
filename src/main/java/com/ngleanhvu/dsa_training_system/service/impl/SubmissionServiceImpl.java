@@ -13,6 +13,7 @@ import com.ngleanhvu.dsa_training_system.repo.TestCaseRepo;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -34,6 +35,12 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final ProblemDetailRepo problemDetailRepo;
     private final RestTemplate restTemplate;
     private final TestCaseRepo testCaseRepo;
+
+    @Value("${piston.load_balancer}")
+    private String loadBalancer;
+
+    @Value("${piston.port}")
+    private int port;
 
     @Override
     public List<SubmissionResponse> submit(SubmissionRequest submissionRequest) {
@@ -57,7 +64,6 @@ public class SubmissionServiceImpl implements SubmissionService {
 
             for (TestCase testCase : testCases) {
                 futures.add(executor.submit(() -> {
-                    long startTime = System.nanoTime();
 
                     Map<String, Object> params = new HashMap<>();
                     params.put("language", programmingLanguage.getFileName());
@@ -78,7 +84,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
 
-                    String URL = "http://13.251.81.69:2000/api/v2/execute";
+                    String URL = String.format("http://%s:%d/api/v2/submissions/submit", loadBalancer, port);
 
                     SubmissionResponse response;
 

@@ -18,5 +18,9 @@ aws:
 file:
   max_size: 5242880
 
+piston:
+  load_balancer: ${PISTON_LOAD_BALANCER}
+  port: ${PISTON_PORT}
+
 server:
   port: 8000
