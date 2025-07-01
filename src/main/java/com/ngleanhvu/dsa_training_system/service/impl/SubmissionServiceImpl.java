@@ -57,6 +57,8 @@ public class SubmissionServiceImpl implements SubmissionService {
 
             for (TestCase testCase : testCases) {
                 futures.add(executor.submit(() -> {
+                    long startTime = System.nanoTime();
+
                     Map<String, Object> params = new HashMap<>();
                     params.put("language", programmingLanguage.getFileName());
                     params.put("version", programmingLanguage.getVersion());
@@ -77,16 +79,43 @@ public class SubmissionServiceImpl implements SubmissionService {
                     HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
 
                     String URL = "http://13.251.81.69:2000/api/v2/execute";
-                    SubmissionResponse response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
+
+                    SubmissionResponse response;
+
+                    try {
+                        response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
+                        log.info("Submission response: {}", response);
+                    } catch (Exception e) {
+                        SubmissionResponse errorResp = new SubmissionResponse();
+                        errorResp.setStatus("ERROR");
+                        return errorResp;
+                    }
 
                     if (response == null) {
-                        throw new RuntimeException("Null response from code execution API");
+                        SubmissionResponse nullResp = new SubmissionResponse();
+                        nullResp.setStatus("NULL_RESPONSE");
+                        return nullResp;
                     }
 
                     response.setInput(testCase.getInput());
                     response.setExpectOutput(testCase.getOutput());
 
+                    String actualOutput = response.getRun().getStdout().trim().replace("\r", "");
+                    String expectedOutput = testCase.getOutput().trim().replace("\r", "");
+
+                    long timeUsed = response.getRun().getCpuTime(); // đơn vị: milliseconds
+                    long timeLimit = problemDetail.getTimeLimit();
+
+                    if (timeUsed > timeLimit) {
+                        response.setStatus("TIME_LIMIT_EXCEEDED");
+                    } else if (actualOutput.equals(expectedOutput)) {
+                        response.setStatus("SUCCESS");
+                    } else {
+                        response.setStatus("FAILURE");
+                    }
+
                     return response;
+
                 }));
             }
 
