@@ -1,9 +1,12 @@
 package com.ngleanhvu.dsa_training_system.controller;
 
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,12 +16,15 @@ public class SubmissionController {
     private final SubmissionService submissionService;
 
     @PostMapping("/submit")
-    public String submitCode(@RequestBody SubmissionRequest request) {
-        return submissionService.submitSubmission(request);
-    }
+    public ResponseEntity<?> submit(@RequestBody SubmissionRequest submissionRequest) {
+        var submissionResponse = submissionService.submit(submissionRequest);
 
-    @GetMapping("/result/{token}")
-    public SubmissionResponse getResult(@PathVariable String token) {
-        return submissionService.getSubmissionResult(token);
+        ApiResponse<?> response = ApiResponse.builder()
+                .message("Submit test cases success")
+                .status(HttpStatus.OK.name())
+                .metadata(submissionResponse)
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

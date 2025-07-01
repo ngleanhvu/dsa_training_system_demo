@@ -24,9 +24,10 @@ public class ProgrammingLanguage {
     private String version;
 
     @Column(length = 10)
-    private String fileExtension;
+    private String fileName;
 
-    private String judge0LanguageId;
+    @Column(length = 10, name = "file_main_name")
+    private String fileMainName;
 
     private Boolean isActive = true;
 

@@ -1,80 +1,113 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
+import com.ngleanhvu.dsa_training_system.entity.ProblemDetail;
 import com.ngleanhvu.dsa_training_system.entity.ProgrammingLanguage;
+import com.ngleanhvu.dsa_training_system.entity.TestCase;
+import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.repo.ProblemDetailRepo;
 import com.ngleanhvu.dsa_training_system.repo.ProgrammingLanguageRepo;
+import com.ngleanhvu.dsa_training_system.repo.TestCaseRepo;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SubmissionServiceImpl implements SubmissionService {
 
-    @Value("${judge0.api_key}")
-    private String apiKey;
-
-    @Value("${judge0.api_host}")
-    private String apiHost;
-
-    private static final String JUDGE_URL = "https://judge0-ce.p.rapidapi.com/submissions";
-    private final RestTemplate restTemplate;
     private final ProgrammingLanguageRepo programmingLanguageRepo;
+    private final ProblemDetailRepo problemDetailRepo;
+    private final RestTemplate restTemplate;
+    private final TestCaseRepo testCaseRepo;
 
     @Override
-    public String submitSubmission(SubmissionRequest request) {
-        ProgrammingLanguage p = programmingLanguageRepo.findById(request.getLanguageId())
-                .orElseThrow(() -> new ResourceNotFoundException("Programming language","id",String.valueOf(request.getLanguageId())));
+    public List<SubmissionResponse> submit(SubmissionRequest submissionRequest) {
+        ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionRequest.getLanguageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Language", "id", String.valueOf(submissionRequest.getLanguageId())));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-RapidAPI-Key", apiKey);
-        headers.set("X-RapidAPI-Host", apiHost);
+        ProblemDetail problemDetail = problemDetailRepo.findByProblemId(submissionRequest.getProblemId())
+                .orElseThrow(() -> new ResourceNotFoundException("ProblemDetail", "id", String.valueOf(submissionRequest.getProblemId())));
 
-        Map<String, Object> body = Map.of(
-                "source_code", request.getSourceCode(),
-                "language_id", p.getJudge0LanguageId(),
-                "stdin", request.getStdin()
-        );
+        List<TestCase> testCases = testCaseRepo.findAllByProblemId(submissionRequest.getProblemId());
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        ResponseEntity<JsonNode> response = restTemplate.postForEntity( JUDGE_URL + "?base64_encoded=false&wait=false", entity, JsonNode.class);
-        return Objects.requireNonNull(response.getBody()).get("token").asText();
-
-    }
-
-    @Override
-    public SubmissionResponse getSubmissionResult(String token) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-RapidAPI-Key", apiHost);
-        headers.set("X-RapidAPI-Host", apiHost);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        String url = JUDGE_URL + "/" + token + "?base64_encoded=false";
-
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-
-        JsonNode body = response.getBody();
-        if (body != null) {
-            SubmissionResponse result = new SubmissionResponse();
-            result.setStdout(body.path("stdout").asText());
-            result.setStderr(body.path("stderr").asText());
-            result.setCompile_output(body.path("compile_output").asText());
-            result.setStatusId(body.path("status").path("id").asInt());
-            result.setStatusDescription(body.path("status").path("description").asText());
-            return result;
+        if (testCases.isEmpty()) {
+            throw new InvalidValueException("Test case quantity must be more than 1");
         }
-        return null;
+
+        List<SubmissionResponse> allResponses = new ArrayList<>();
+
+        // Dùng try-with-resources để đảm bảo executor shutdown đúng
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<SubmissionResponse>> futures = new ArrayList<>();
+
+            for (TestCase testCase : testCases) {
+                futures.add(executor.submit(() -> {
+                    Map<String, Object> params = new HashMap<>();
+                    params.put("language", programmingLanguage.getFileName());
+                    params.put("version", programmingLanguage.getVersion());
+
+                    List<Map<String, String>> files = new ArrayList<>();
+                    Map<String, String> file = new HashMap<>();
+                    file.put("name", programmingLanguage.getFileMainName());
+                    file.put("content", submissionRequest.getSourceCode());
+                    files.add(file);
+                    params.put("files", files);
+
+                    params.put("stdin", testCase.getInput());
+                    params.put("run_timeout", problemDetail.getTimeLimit());
+                    params.put("run_memory_limit", problemDetail.getMemoryLimit());
+
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
+
+                    String URL = "http://13.251.81.69:2000/api/v2/execute";
+                    SubmissionResponse response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
+
+                    if (response == null) {
+                        throw new RuntimeException("Null response from code execution API");
+                    }
+
+                    response.setInput(testCase.getInput());
+                    response.setExpectOutput(testCase.getOutput());
+
+                    return response;
+                }));
+            }
+
+            // Lấy kết quả từng thread
+            for (Future<SubmissionResponse> future : futures) {
+                try {
+                    // future.get() có thể throw nên bọc kỹ
+                    allResponses.add(future.get(10, TimeUnit.SECONDS)); // tránh chờ mãi
+                } catch (TimeoutException e) {
+                    // Nếu bị timeout thì có thể tạo một response lỗi đặc biệt
+                    SubmissionResponse timeoutResp = new SubmissionResponse();
+                    timeoutResp.setStatus("TIMEOUT");
+                    allResponses.add(timeoutResp);
+                } catch (Exception e) {
+                    log.error(e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        return allResponses;
     }
+
 }

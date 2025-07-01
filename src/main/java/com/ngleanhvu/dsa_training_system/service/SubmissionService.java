@@ -2,9 +2,9 @@ package com.ngleanhvu.dsa_training_system.service;
 
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
-import com.ngleanhvu.dsa_training_system.entity.Submission;
+
+import java.util.List;
 
 public interface SubmissionService {
-    String submitSubmission(SubmissionRequest submissionRequest);
-    SubmissionResponse getSubmissionResult(String token);
+    List<SubmissionResponse> submit(SubmissionRequest submissionRequest);
 }

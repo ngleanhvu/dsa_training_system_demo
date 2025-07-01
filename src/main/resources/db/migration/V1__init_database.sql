@@ -83,7 +83,7 @@ create table if not exists programming_languages (
             programming_language_id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(50) NOT NULL,
             version VARCHAR(20),
-            file_extension VARCHAR(10),
+            file_name VARCHAR(10),
             is_active BOOLEAN DEFAULT TRUE,
             status int default 1,
             created_at datetime default current_timestamp,
