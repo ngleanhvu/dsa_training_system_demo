@@ -1,9 +1,11 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.ListSubmissionResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
 import com.ngleanhvu.dsa_training_system.entity.ProblemDetail;
 import com.ngleanhvu.dsa_training_system.entity.ProgrammingLanguage;
+import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import com.ngleanhvu.dsa_training_system.entity.TestCase;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -43,7 +46,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private int port;
 
     @Override
-    public List<SubmissionResponse> submit(SubmissionRequest submissionRequest) {
+    public ListSubmissionResponse submit(SubmissionRequest submissionRequest) {
         ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionRequest.getLanguageId())
                 .orElseThrow(() -> new ResourceNotFoundException("Language", "id", String.valueOf(submissionRequest.getLanguageId())));
 
@@ -58,7 +61,6 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         List<SubmissionResponse> allResponses = new ArrayList<>();
 
-        // Dùng try-with-resources để đảm bảo executor shutdown đúng
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<SubmissionResponse>> futures = new ArrayList<>();
 
@@ -92,48 +94,58 @@ public class SubmissionServiceImpl implements SubmissionService {
                         response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
                         log.info("Submission response: {}", response);
                     } catch (Exception e) {
-                        SubmissionResponse errorResp = new SubmissionResponse();
-                        errorResp.setStatus("ERROR");
-                        return errorResp;
+                        return SubmissionResponse.builder()
+                                .status(SubmissionStatus.ERROR.getValue())
+                                .input(testCase.getInput())
+                                .expectOutput(testCase.getOutput())
+                                .build();
                     }
 
                     if (response == null) {
-                        SubmissionResponse nullResp = new SubmissionResponse();
-                        nullResp.setStatus("NULL_RESPONSE");
-                        return nullResp;
+                        return SubmissionResponse.builder()
+                                .status(SubmissionStatus.NULL_RESPONSE.getValue())
+                                .input(testCase.getInput())
+                                .expectOutput(testCase.getOutput())
+                                .build();
                     }
 
                     response.setInput(testCase.getInput());
                     response.setExpectOutput(testCase.getOutput());
 
                     String actualOutput = response.getRun().getStdout().trim().replace("\r", "");
+                    log.info("Actual output: {}", actualOutput);
                     String expectedOutput = testCase.getOutput().trim().replace("\r", "");
+                    log.info("Expected output: {}", expectedOutput);
 
-                    long timeUsed = response.getRun().getCpuTime(); // đơn vị: milliseconds
+                    Integer memoryUsed = response.getRun().getMemory();
+
+                    long timeUsed = response.getRun().getCpuTime();
+                    log.info("Time used: {}", timeUsed);
                     long timeLimit = problemDetail.getTimeLimit();
+                    log.info("Time limit: {}", timeLimit);
 
-                    if (timeUsed > timeLimit) {
-                        response.setStatus("TIME_LIMIT_EXCEEDED");
-                    } else if (actualOutput.equals(expectedOutput)) {
-                        response.setStatus("SUCCESS");
+                    if (response.getRun().getCode() != 0) {
+                        response.setStatus(SubmissionStatus.RUNTIME_ERROR.getValue());
+                    } else if (timeUsed > timeLimit) {
+                        response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue());
+                    } else if (memoryUsed > problemDetail.getMemoryLimit()) {
+                        response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED.getValue());
+                    } else if (!actualOutput.equals(expectedOutput)) {
+                        response.setStatus(SubmissionStatus.WRONG_ANSWER.getValue());
                     } else {
-                        response.setStatus("FAILURE");
+                        response.setStatus(SubmissionStatus.ACCEPTED.getValue());
                     }
 
                     return response;
-
                 }));
             }
 
-            // Lấy kết quả từng thread
             for (Future<SubmissionResponse> future : futures) {
                 try {
-                    // future.get() có thể throw nên bọc kỹ
-                    allResponses.add(future.get(10, TimeUnit.SECONDS)); // tránh chờ mãi
+                    allResponses.add(future.get(10, TimeUnit.SECONDS));
                 } catch (TimeoutException e) {
-                    // Nếu bị timeout thì có thể tạo một response lỗi đặc biệt
                     SubmissionResponse timeoutResp = new SubmissionResponse();
-                    timeoutResp.setStatus("TIMEOUT");
+                    timeoutResp.setStatus(SubmissionStatus.TIMEOUT.getValue());
                     allResponses.add(timeoutResp);
                 } catch (Exception e) {
                     log.error(e.getMessage());
@@ -142,7 +154,65 @@ public class SubmissionServiceImpl implements SubmissionService {
             }
         }
 
-        return allResponses;
+        double maxCpuTime = getMaxCpuTime(allResponses);
+        log.info("Avg CPU Time: {} ms", maxCpuTime);
+
+        double maxMemory = getMaxMemory(allResponses);
+        log.info("Max Memory: {} ms", maxMemory);
+
+        String overallStatus = evaluateOverallStatus(allResponses);
+
+        ListSubmissionResponse listSubmissionResponse = ListSubmissionResponse.builder()
+                .submissionResponses(allResponses)
+                .memory(maxMemory)
+                .runtime(maxCpuTime)
+                .language(programmingLanguage.getName())
+                .sourcecode(submissionRequest.getSourceCode())
+                .status(overallStatus)
+                .build();
+
+
+        log.info("List submission response: {}", listSubmissionResponse);
+
+        return listSubmissionResponse;
     }
+
+
+    private static double getMaxCpuTime(List<SubmissionResponse> responses) {
+        return responses.stream()
+                .filter(r -> r.getRun() != null)
+                .mapToLong(r -> r.getRun().getCpuTime())
+                .max()
+                .orElse(0);
+    }
+
+    private static double getMaxMemory(List<SubmissionResponse> responses) {
+        return responses.stream()
+                .filter(r -> r.getRun() != null)
+                .mapToLong(r -> r.getRun().getMemory())
+                .max()
+                .orElse(0);
+    }
+
+    private String evaluateOverallStatus(List<SubmissionResponse> responses) {
+        boolean allAccepted = responses.stream()
+                .allMatch(r -> SubmissionStatus.ACCEPTED.getValue().equals(r.getStatus()));
+
+        if (allAccepted) return SubmissionStatus.ACCEPTED.getValue();
+
+        boolean hasCompileError = responses.stream()
+                .anyMatch(r -> SubmissionStatus.ERROR.getValue().equals(r.getStatus()) ||
+                        SubmissionStatus.NULL_RESPONSE.getValue().equals(r.getStatus()));
+
+        if (hasCompileError) return SubmissionStatus.COMPILE_ERROR.getValue();
+
+        boolean hasRuntimeError = responses.stream()
+                .anyMatch(r -> SubmissionStatus.RUNTIME_ERROR.getValue().equals(r.getStatus()));
+
+        if (hasRuntimeError) return SubmissionStatus.RUNTIME_ERROR.getValue();
+
+        return SubmissionStatus.WRONG_ANSWER.getValue();
+    }
+
 
 }

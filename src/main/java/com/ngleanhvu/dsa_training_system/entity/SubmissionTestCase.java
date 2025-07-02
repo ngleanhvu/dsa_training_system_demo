@@ -8,27 +8,24 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "submissions")@Getter
+@Table(name = "submissions_test_cases")
+@Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Submission {
+public class SubmissionTestCase {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer submissionId;
+    private Integer id;
 
+    @JoinColumn(name = "submission_id")
     @ManyToOne
-    @JoinColumn(name = "problem_id", nullable = false)
-    private Problem problem;
+    private Submission submission;
 
+    @JoinColumn(name = "test_case_id")
     @ManyToOne
-    @JoinColumn(name = "programming_language_id", nullable = false)
-    private ProgrammingLanguage programmingLanguage;
-
-    @Lob
-    @Column(nullable = false)
-    private String code;
+    private TestCase testCase;
 
     @Enumerated(EnumType.STRING)
     private SubmissionStatus submissionStatus = SubmissionStatus.PENDING;
@@ -39,16 +36,6 @@ public class Submission {
     @Column(name = "memory")
     private Integer memoryKb;
 
-    private Integer testCasesPassed = 0;
-
-    private Integer totalTestCases = 0;
-
-    @Lob
-    private String errorMessage;
-
-    @Column(nullable = false)
-    private LocalDateTime submittedAt = LocalDateTime.now();
-
     private Integer status = 1;
 
     @CreationTimestamp
@@ -56,5 +43,5 @@ public class Submission {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-}
 
+}

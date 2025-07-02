@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SubmissionResponse {
-    private String language;
-    private String version;
     private String expectOutput;
     private String input;
     private RunResult run;
