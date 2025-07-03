@@ -72,6 +72,8 @@ public class ProblemServiceImpl implements ProblemService {
                 .status(1)
                 .build();
 
+
+
         problemDetailRepo.save(problemDetail);
     }
 }

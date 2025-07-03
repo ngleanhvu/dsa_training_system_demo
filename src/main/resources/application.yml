@@ -19,6 +19,8 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  elasticsearch:
+    uris: http://localhost:9200
 
 aws:
   access_key_id: ${AWS_ACCESS_KEY_ID}
