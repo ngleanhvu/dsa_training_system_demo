@@ -1,6 +1,7 @@
 package com.ngleanhvu.dsa_training_system.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +15,8 @@ public class SubmissionResponse {
     private String expectOutput;
     private String input;
     private RunResult run;
-    private String status;
+    private SubmissionStatus status;
+    private int testCaseId;
 
     @Data
     @Builder
