@@ -97,19 +97,7 @@ public class SubmissionServiceImpl implements SubmissionService {
 
                     String URL = String.format("http://%s:%d/api/v2/execute", loadBalancer, port);
 
-                    SubmissionResponse response;
-
-                    try {
-                        response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
-                        log.info("Submission response: {}", response);
-                    } catch (Exception e) {
-                        log.error("Error while submit: {}", e.getMessage());
-                        return SubmissionResponse.builder()
-                                .status(SubmissionStatus.ERROR)
-                                .input(testCase.getInput())
-                                .expectOutput(testCase.getOutput())
-                                .build();
-                    }
+                    SubmissionResponse response = executeCode(URL, request, testCase);
 
                     if (response == null) {
                         return SubmissionResponse.builder()
@@ -261,40 +249,34 @@ public class SubmissionServiceImpl implements SubmissionService {
         int pass = 0;
 
         for (SubmissionResponse r : responses) {
-            SubmissionStatus status = r.getStatus();
             var run = r.getRun();
 
-            if (SubmissionStatus.ACCEPTED == status) {
-                if (run != null && run.getCode() != null && run.getCode() != 0) {
-                    return OverallResponse.builder()
-                            .status(SubmissionStatus.COMPILE_ERROR.getValue())
-                            .message(run.getStderr())
-                            .pass(0)
-                            .total(0)
-                            .build();
-                }
+            if (run != null && run.getCode() != null && run.getCode() != 0) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.COMPILE_ERROR.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(0).build();
+            }
 
-                if (run != null && "RE".equals(run.getStatus())) {
-                    return OverallResponse.builder()
-                            .status(SubmissionStatus.RUNTIME_ERROR.getValue())
-                            .message(run.getStderr())
-                            .pass(0)
-                            .total(0)
-                            .build();
-                }
+            if (run != null && "RE".equals(run.getStatus())) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.RUNTIME_ERROR.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(0).build();
+            }
 
-                if (run != null && "TO".equals(run.getStatus())) {
-                    return OverallResponse.builder()
-                            .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
-                            .message(run.getStderr())
-                            .pass(0)
-                            .total(0)
-                            .build();
-                }
-            } else {
+            if (run != null && "TO".equals(run.getStatus())) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(0).build();
+            }
+
+            if (SubmissionStatus.ACCEPTED == r.getStatus()) {
                 pass++;
             }
         }
+
 
         if (pass == total) {
             return OverallResponse.builder()
@@ -313,6 +295,26 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .build();
     }
 
+    private SubmissionResponse executeCode(String url, HttpEntity<Map<String, Object>> request, TestCase testCase) {
+        try {
+            SubmissionResponse response = restTemplate.postForObject(url, request, SubmissionResponse.class);
+            if (response == null) {
+                return SubmissionResponse.builder()
+                        .status(SubmissionStatus.NULL_RESPONSE)
+                        .input(testCase.getInput())
+                        .expectOutput(testCase.getOutput())
+                        .build();
+            }
+            return response;
+        } catch (Exception e) {
+            log.error("Error while submit: {}", e.getMessage());
+            return SubmissionResponse.builder()
+                    .status(SubmissionStatus.ERROR)
+                    .input(testCase.getInput())
+                    .expectOutput(testCase.getOutput())
+                    .build();
+        }
+    }
 
 
 }
