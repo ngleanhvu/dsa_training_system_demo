@@ -9,4 +9,6 @@ import lombok.Data;
 public class OverallResponse {
     private String status;
     private String message;
+    private int pass;
+    private int total;
 }

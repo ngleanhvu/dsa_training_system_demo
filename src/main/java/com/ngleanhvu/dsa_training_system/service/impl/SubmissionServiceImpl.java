@@ -201,52 +201,60 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     private OverallResponse evaluateOverallStatus(List<SubmissionResponse> responses) {
-        boolean allAccepted = responses.stream()
-                .allMatch(r -> SubmissionStatus.ACCEPTED.getValue().equals(r.getStatus()));
+        int total = responses.size();
+        int pass = 0;
 
-        if (allAccepted)
+        for (SubmissionResponse r : responses) {
+            String status = r.getStatus();
+            var run = r.getRun();
+
+            if (!SubmissionStatus.ACCEPTED.getValue().equals(status)) {
+                if (run != null && run.getCode() != null && run.getCode() != 0) {
+                    return OverallResponse.builder()
+                            .status(SubmissionStatus.COMPILE_ERROR.getValue())
+                            .message(run.getStderr())
+                            .pass(0)
+                            .total(0)
+                            .build();
+                }
+
+                if (run != null && "RE".equals(run.getStatus())) {
+                    return OverallResponse.builder()
+                            .status(SubmissionStatus.RUNTIME_ERROR.getValue())
+                            .message(run.getStderr())
+                            .pass(0)
+                            .total(0)
+                            .build();
+                }
+
+                if (run != null && "TO".equals(run.getStatus())) {
+                    return OverallResponse.builder()
+                            .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
+                            .message(run.getStderr())
+                            .pass(0)
+                            .total(0)
+                            .build();
+                }
+            } else {
+                pass++;
+            }
+        }
+
+        if (pass == total) {
             return OverallResponse.builder()
-                .message(null)
-                .status(SubmissionStatus.ACCEPTED.getValue())
-                .build();
+                    .status(SubmissionStatus.ACCEPTED.getValue())
+                    .message(null)
+                    .pass(pass)
+                    .total(total)
+                    .build();
+        }
 
-        Optional<OverallResponse> hasCompileError = responses.stream()
-                .filter(r -> r.getRun() != null && r.getRun().getCode() != null && r.getRun().getCode() != 0)
-                .map(r -> OverallResponse.builder()
-                        .status(SubmissionStatus.COMPILE_ERROR.getValue())
-                        .message(r.getRun().getStderr())
-                        .build())
-                .findFirst();
-
-        if (hasCompileError.isPresent())
-            return hasCompileError.get();
-
-        Optional<OverallResponse> hasRuntimeError = responses.stream()
-                .filter(r -> r.getRun() != null && "RE".equals(r.getRun().getStatus()))
-                .map(r -> OverallResponse.builder()
-                        .status(SubmissionStatus.RUNTIME_ERROR.getValue())
-                        .message(r.getRun().getStderr())
-                        .build())
-                .findFirst();
-
-
-        if (hasRuntimeError.isPresent())
-            return hasRuntimeError.get();
-
-        Optional<OverallResponse> hasTimeout = responses.stream()
-                .filter(r -> r.getRun() != null && "TO".equals(r.getRun().getStatus()))
-                .map(r -> OverallResponse.builder()
-                        .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
-                        .message(r.getRun().getStderr())
-                        .build())
-                .findFirst();
-
-        return hasTimeout.orElseGet(() -> OverallResponse.builder()
+        return OverallResponse.builder()
                 .status(SubmissionStatus.WRONG_ANSWER.getValue())
                 .message(null)
-                .build());
-
+                .pass(pass)
+                .total(total)
+                .build();
     }
-
 
 }
