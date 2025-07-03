@@ -27,6 +27,7 @@ public class SubmissionTestCase {
     @ManyToOne
     private TestCase testCase;
 
+    @Column(name = "submission_status")
     @Enumerated(EnumType.STRING)
     private SubmissionStatus submissionStatus = SubmissionStatus.PENDING;
 

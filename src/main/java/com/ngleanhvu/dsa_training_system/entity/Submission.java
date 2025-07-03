@@ -30,6 +30,7 @@ public class Submission {
     @Column(nullable = false)
     private String code;
 
+    @Column(name = "submission_status")
     @Enumerated(EnumType.STRING)
     private SubmissionStatus submissionStatus = SubmissionStatus.PENDING;
 

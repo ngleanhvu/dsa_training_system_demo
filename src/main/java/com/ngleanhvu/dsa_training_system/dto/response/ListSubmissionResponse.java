@@ -10,7 +10,7 @@ import java.util.List;
 public class ListSubmissionResponse {
     private String sourcecode;
     private String language;
-    private String status;
+    private OverallResponse status;
     private double runtime;
     private double memory;
     private String message;

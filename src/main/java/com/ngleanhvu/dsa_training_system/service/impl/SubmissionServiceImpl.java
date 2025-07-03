@@ -2,6 +2,7 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ListSubmissionResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.OverallResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
 import com.ngleanhvu.dsa_training_system.entity.ProblemDetail;
 import com.ngleanhvu.dsa_training_system.entity.ProgrammingLanguage;
@@ -13,6 +14,7 @@ import com.ngleanhvu.dsa_training_system.repo.ProblemDetailRepo;
 import com.ngleanhvu.dsa_training_system.repo.ProgrammingLanguageRepo;
 import com.ngleanhvu.dsa_training_system.repo.TestCaseRepo;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,12 +24,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
-
 
 @Service
 @RequiredArgsConstructor
@@ -59,11 +57,14 @@ public class SubmissionServiceImpl implements SubmissionService {
             throw new InvalidValueException("Test case quantity must be more than 1");
         }
 
+        log.info("load balancer: {}", loadBalancer);
+        log.info("port: {}", port);
+
         List<SubmissionResponse> allResponses = new ArrayList<>();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<SubmissionResponse>> futures = new ArrayList<>();
-
+            long memoryLimit = AppUtil.megabytesToBytes(problemDetail.getMemoryLimit());
             for (TestCase testCase : testCases) {
                 futures.add(executor.submit(() -> {
 
@@ -86,7 +87,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
 
-                    String URL = String.format("http://%s:%d/api/v2/submissions/submit", loadBalancer, port);
+                    String URL = String.format("http://%s:%d/api/v2/execute", loadBalancer, port);
 
                     SubmissionResponse response;
 
@@ -94,6 +95,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                         response = restTemplate.postForObject(URL, request, SubmissionResponse.class);
                         log.info("Submission response: {}", response);
                     } catch (Exception e) {
+                        log.error("Error while submit: {}", e.getMessage());
                         return SubmissionResponse.builder()
                                 .status(SubmissionStatus.ERROR.getValue())
                                 .input(testCase.getInput())
@@ -124,17 +126,20 @@ public class SubmissionServiceImpl implements SubmissionService {
                     long timeLimit = problemDetail.getTimeLimit();
                     log.info("Time limit: {}", timeLimit);
 
-                    if (response.getRun().getCode() != 0) {
-                        response.setStatus(SubmissionStatus.RUNTIME_ERROR.getValue());
-                    } else if (timeUsed > timeLimit) {
+                    if (response.getRun() == null) {
+                        response.setStatus(SubmissionStatus.ERROR.getValue());
+                    } else if (response.getRun().getCode() != null && response.getRun().getCode() != 0) {
+                        response.setStatus(SubmissionStatus.COMPILE_ERROR.getValue());
+                    } else if (response.getRun().getStatus().equals("TO")) {
                         response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue());
-                    } else if (memoryUsed > problemDetail.getMemoryLimit()) {
+                    } else if (memoryUsed > memoryLimit) {
                         response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED.getValue());
                     } else if (!actualOutput.equals(expectedOutput)) {
                         response.setStatus(SubmissionStatus.WRONG_ANSWER.getValue());
                     } else {
                         response.setStatus(SubmissionStatus.ACCEPTED.getValue());
                     }
+
 
                     return response;
                 }));
@@ -160,7 +165,8 @@ public class SubmissionServiceImpl implements SubmissionService {
         double maxMemory = getMaxMemory(allResponses);
         log.info("Max Memory: {} ms", maxMemory);
 
-        String overallStatus = evaluateOverallStatus(allResponses);
+        OverallResponse overallResponse = evaluateOverallStatus(allResponses);
+        log.info("Overall Response: {}", overallResponse);
 
         ListSubmissionResponse listSubmissionResponse = ListSubmissionResponse.builder()
                 .submissionResponses(allResponses)
@@ -168,7 +174,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .runtime(maxCpuTime)
                 .language(programmingLanguage.getName())
                 .sourcecode(submissionRequest.getSourceCode())
-                .status(overallStatus)
+                .status(overallResponse)
                 .build();
 
 
@@ -194,24 +200,52 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .orElse(0);
     }
 
-    private String evaluateOverallStatus(List<SubmissionResponse> responses) {
+    private OverallResponse evaluateOverallStatus(List<SubmissionResponse> responses) {
         boolean allAccepted = responses.stream()
                 .allMatch(r -> SubmissionStatus.ACCEPTED.getValue().equals(r.getStatus()));
 
-        if (allAccepted) return SubmissionStatus.ACCEPTED.getValue();
+        if (allAccepted)
+            return OverallResponse.builder()
+                .message(null)
+                .status(SubmissionStatus.ACCEPTED.getValue())
+                .build();
 
-        boolean hasCompileError = responses.stream()
-                .anyMatch(r -> SubmissionStatus.ERROR.getValue().equals(r.getStatus()) ||
-                        SubmissionStatus.NULL_RESPONSE.getValue().equals(r.getStatus()));
+        Optional<OverallResponse> hasCompileError = responses.stream()
+                .filter(r -> r.getRun() != null && r.getRun().getCode() != null && r.getRun().getCode() != 0)
+                .map(r -> OverallResponse.builder()
+                        .status(SubmissionStatus.COMPILE_ERROR.getValue())
+                        .message(r.getRun().getStderr())
+                        .build())
+                .findFirst();
 
-        if (hasCompileError) return SubmissionStatus.COMPILE_ERROR.getValue();
+        if (hasCompileError.isPresent())
+            return hasCompileError.get();
 
-        boolean hasRuntimeError = responses.stream()
-                .anyMatch(r -> SubmissionStatus.RUNTIME_ERROR.getValue().equals(r.getStatus()));
+        Optional<OverallResponse> hasRuntimeError = responses.stream()
+                .filter(r -> r.getRun() != null && "RE".equals(r.getRun().getStatus()))
+                .map(r -> OverallResponse.builder()
+                        .status(SubmissionStatus.RUNTIME_ERROR.getValue())
+                        .message(r.getRun().getStderr())
+                        .build())
+                .findFirst();
 
-        if (hasRuntimeError) return SubmissionStatus.RUNTIME_ERROR.getValue();
 
-        return SubmissionStatus.WRONG_ANSWER.getValue();
+        if (hasRuntimeError.isPresent())
+            return hasRuntimeError.get();
+
+        Optional<OverallResponse> hasTimeout = responses.stream()
+                .filter(r -> r.getRun() != null && "TO".equals(r.getRun().getStatus()))
+                .map(r -> OverallResponse.builder()
+                        .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
+                        .message(r.getRun().getStderr())
+                        .build())
+                .findFirst();
+
+        return hasTimeout.orElseGet(() -> OverallResponse.builder()
+                .status(SubmissionStatus.WRONG_ANSWER.getValue())
+                .message(null)
+                .build());
+
     }
 
 
