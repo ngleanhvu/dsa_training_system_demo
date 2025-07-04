@@ -1,5 +1,6 @@
 package com.ngleanhvu.dsa_training_system.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
@@ -16,7 +17,7 @@ public class SubmissionController {
     private final SubmissionService submissionService;
 
     @PostMapping("/submit")
-    public ResponseEntity<?> submit(@RequestBody SubmissionRequest submissionRequest) {
+    public ResponseEntity<?> submit(@RequestBody SubmissionRequest submissionRequest) throws JsonProcessingException {
         var submissionResponse = submissionService.submit(submissionRequest);
 
         ApiResponse<?> response = ApiResponse.builder()
