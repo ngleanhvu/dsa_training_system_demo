@@ -39,9 +39,9 @@ public class ProblemController {
 
     @GetMapping("/search")
     public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
-                                           @RequestParam String sortBy,
-                                           @RequestParam String sortDirection,
-                                           @RequestParam Integer page) {
+                                           @RequestParam(required = false) String sortBy,
+                                           @RequestParam(required = false) String sortDirection,
+                                           @RequestParam(required = false) Integer page) {
         log.info("Searching problem: {}", problemSearchRequest);
 
         PagingSearch pagingSearch = new PagingSearch();
