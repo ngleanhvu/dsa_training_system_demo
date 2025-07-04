@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ProblemSearchRequest {
-    private String title;
+public class SortRequest {
+    private String field;
+    private String sortDirection;
 }

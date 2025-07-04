@@ -35,8 +35,13 @@ piston:
   load_balancer: ${PISTON_LOAD_BALANCER}
   port: ${PISTON_PORT}
 
+page:
+  size: 20
+
 server:
   port: 8000
+
+
 
 
 

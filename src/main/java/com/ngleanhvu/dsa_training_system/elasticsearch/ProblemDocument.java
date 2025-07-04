@@ -1,4 +1,4 @@
-package com.ngleanhvu.dsa_training_system.document;
+package com.ngleanhvu.dsa_training_system.elasticsearch;
 
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -10,6 +10,7 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(indexName = "problem_index")
 @Data @Builder
@@ -29,8 +30,8 @@ public class ProblemDocument {
     @Field(type = FieldType.Object)
     private DifficultyDocument difficulty;
 
-    @Field(type = FieldType.Object)
-    private TopicDocument topic;
+    @Field(type = FieldType.Integer)
+    private List<Integer> topic;
 
     @Field(type = FieldType.Double)
     private BigDecimal acceptanceRate;
@@ -48,13 +49,6 @@ public class ProblemDocument {
         private String name;
     }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class TopicDocument {
-        private Integer id;
-        private String name;
-    }
 
 }
 
