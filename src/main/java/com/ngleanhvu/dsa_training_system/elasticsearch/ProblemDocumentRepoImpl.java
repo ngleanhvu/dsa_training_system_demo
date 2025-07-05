@@ -1,10 +1,12 @@
 package com.ngleanhvu.dsa_training_system.elasticsearch;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -13,46 +15,82 @@ import org.springframework.data.elasticsearch.core.SearchHitSupport;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ProblemDocumentRepoImpl  {
 
     private final ElasticsearchOperations operations;
+    private final ElasticsearchClient elasticsearchClient;
+
 
     public Page<ProblemDocument> search(ProblemSearchRequest searchRequest, PagingSearch pagingSearch) {
+        String filterTypeStr = (searchRequest.getFilterType() == null || searchRequest.getFilterType().isBlank())
+                ? FilterType.ALL.name()
+                : searchRequest.getFilterType().toUpperCase();
+        log.info("filterTypeStr: {}", filterTypeStr);
 
-        String filterTypeStr = searchRequest.getFilterType() != null ? searchRequest.getFilterType().toUpperCase() : FilterType.ALL.name();
         boolean isAll = filterTypeStr.equals(FilterType.ALL.name());
+        log.info("isAll: {}", isAll);
 
-        Query query =  Query.of(q -> q.bool(b -> {
-            if (searchRequest.getTitle() != null && !searchRequest.getTitle().isEmpty()) {
-                b.must(m -> m.match(t -> t.field("title").query(FieldValue.of(searchRequest.getTitle()))));
-            }
+        Query query;
+        if (isEmpty(searchRequest)) {
+            query = Query.of(q -> q.matchAll(ma -> ma));
+            log.info("query: {}", query);
+        } else {
+            query = Query.of(q -> q.bool(b -> {
+                if (searchRequest.getTitle() != null && !searchRequest.getTitle().isEmpty()) {
+                    b.must(m -> m.match(t -> t.field("title").query(FieldValue.of(searchRequest.getTitle()))));
+                }
 
-            applyFilter(searchRequest.getDifficultyIds(), "difficulty.id" ,isAll, b);
-            applyFilter(searchRequest.getTopicIds(), "topic" ,isAll, b);
+                applyFilter(searchRequest.getDifficultyIds(), "difficultyId", isAll, b);
+                applyFilter(searchRequest.getTopicIds(), "topic", isAll, b);
 
-            return b;
-        }));
+                return b;
+            }));
+        }
 
         NativeQuery nativeQuery = NativeQuery.builder()
                 .withQuery(query)
                 .withPageable(pagingSearch.toPageable())
                 .build();
 
-        SearchHits<ProblemDocument> hits = operations.search(nativeQuery, ProblemDocument.class);
-        return SearchHitSupport.searchPageFor(hits, nativeQuery.getPageable()).map(SearchHit::getContent);
+        log.info("nativeQuery: {}", nativeQuery.getQuery());
+
+        log.info("pageable: {}", pagingSearch.toPageable());
+
+        try {
+            SearchHits<ProblemDocument> hits = operations.search(nativeQuery, ProblemDocument.class);
+            log.info("hits: {}", hits);
+            return SearchHitSupport.searchPageFor(hits, nativeQuery.getPageable()).map(SearchHit::getContent);
+        } catch (Exception e) {
+            log.error("Elasticsearch search failed", e);
+            throw new RuntimeException("ES query failed", e);
+        }
+    }
+
+    public void updateAcceptRateByProblemId(Integer problemId, double acceptRate) {
+        try {
+            elasticsearchClient.update(u -> u
+                            .index("problem_index")
+                            .id(problemId.toString())
+                            .doc(Map.of("acceptRate", acceptRate))
+                    , Map.class);
+        } catch (IOException e) {
+            log.error("Elasticsearch update failed", e);
+        }
     }
 
     private void applyFilter(Map<String, List<Integer>> filterMap, String fieldName, boolean isAll, BoolQuery.Builder b) {
         if (filterMap != null && !filterMap.isEmpty()) {
             String key = filterMap.keySet().iterator().next();
+            log.info("key: {}", key);
             List<Integer> values = filterMap.get(key);
-
+            log.info("values: {}", values);
             if (values != null && !values.isEmpty()) {
                 Query query = Query.of(q -> q.terms(t -> t
                         .field(fieldName)
@@ -69,6 +107,13 @@ public class ProblemDocumentRepoImpl  {
                 }
             }
         }
+    }
+
+    private boolean isEmpty(ProblemSearchRequest request) {
+        return (request.getTitle() == null || request.getTitle().isBlank())
+                && (request.getDifficultyIds() == null || request.getDifficultyIds().isEmpty())
+                && (request.getTopicIds() == null || request.getTopicIds().isEmpty())
+                && (request.getStatus() == null || request.getStatus().isEmpty());
     }
 
 }

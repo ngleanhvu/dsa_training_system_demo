@@ -2,22 +2,29 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateRequest;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.service.ProblemService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProblemServiceImpl implements ProblemService {
 
     private final ProblemRepo problemRepo;
@@ -26,6 +33,13 @@ public class ProblemServiceImpl implements ProblemService {
     private final TopicRepo topicRepo;
     private final ProblemTopicRepo problemTopicRepo;
     private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Value("${server.port}")
+    private String serverPort;
+
+    @Value("${server.address}")
+    private String serverAddress;
 
     @Transactional(propagation = Propagation.REQUIRED)
     @Override
@@ -71,8 +85,27 @@ public class ProblemServiceImpl implements ProblemService {
                 .status(1)
                 .build();
 
+        ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
+                        .problemId(problem.getProblemId())
+                        .title(request.getTitle())
+                        .slug(getSlugPrefix()+problem.getProblemId())
+                        .createdAt(problem.getCreatedAt().toLocalDate())
+                        .acceptanceRate(0)
+                        .difficultyId(difficulty.getDifficultyId())
+                        .difficultyName(difficulty.getName())
+                        .topicIds(topics.stream().map(Topic::getTopicId).collect(Collectors.toList()))
+                        .build();
 
+        log.info("problem create document request: {}", problemDocumentCreateRequest);
+
+        String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
+        log.info("problem create document request: {}", problemDocumentJson);
+        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
 
         problemDetailRepo.save(problemDetail);
+    }
+
+    private String getSlugPrefix() {
+        return String.format("http://%s:%s/api/v1/problems/", serverAddress, serverPort);
     }
 }

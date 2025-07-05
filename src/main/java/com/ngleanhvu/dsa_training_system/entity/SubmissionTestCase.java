@@ -1,5 +1,6 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
+import com.ngleanhvu.dsa_training_system.converter.SubmissionStatusConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -27,15 +28,15 @@ public class SubmissionTestCase {
     @ManyToOne
     private TestCase testCase;
 
+    @Convert(converter = SubmissionStatusConverter.class)
     @Column(name = "submission_status")
-    @Enumerated(EnumType.STRING)
-    private SubmissionStatus submissionStatus = SubmissionStatus.PENDING;
+    private SubmissionStatus submissionStatus;
 
     @Column(name = "runtime")
-    private Integer runtimeMs;
+    private int runtimeMs;
 
     @Column(name = "memory")
-    private Integer memoryKb;
+    private int memoryKb;
 
     private Integer status = 1;
 

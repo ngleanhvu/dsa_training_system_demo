@@ -9,10 +9,12 @@ import com.ngleanhvu.dsa_training_system.repo.ProblemRepo;
 import com.ngleanhvu.dsa_training_system.repo.TestCaseRepo;
 import com.ngleanhvu.dsa_training_system.service.TestCaseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TestCaseServiceImpl implements TestCaseService {
@@ -26,6 +28,8 @@ public class TestCaseServiceImpl implements TestCaseService {
 
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
+
+        log.info("Test case: {}", request);
 
         return TestCase.builder()
                 .input(request.getInput().trim())

@@ -20,6 +20,6 @@ public class SubmissionCreateRequest {
     private int memory;
     private int runtime;
     private LocalDateTime submitTime;
-    private SubmissionStatus status;
+    private String status;
     private List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests;
 }

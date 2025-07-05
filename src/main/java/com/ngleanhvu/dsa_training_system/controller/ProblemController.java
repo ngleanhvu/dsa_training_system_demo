@@ -37,11 +37,11 @@ public class ProblemController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @GetMapping("/search")
+    @PostMapping("/search")
     public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
-                                           @RequestParam(required = false) String sortBy,
-                                           @RequestParam(required = false) String sortDirection,
-                                           @RequestParam(required = false) Integer page) {
+                                           @RequestParam(required = false, defaultValue = "id") String sortBy,
+                                           @RequestParam(required = false, defaultValue = "asc") String sortDirection,
+                                           @RequestParam(required = false, defaultValue = "0") Integer page) {
         log.info("Searching problem: {}", problemSearchRequest);
 
         PagingSearch pagingSearch = new PagingSearch();
@@ -51,6 +51,7 @@ public class ProblemController {
         pagingSearch.setDirection(sortDirection);
 
         var response = problemSearchService.search(problemSearchRequest, new PagingSearch());
+        log.info("Search problem response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .message("Search problem success")

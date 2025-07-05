@@ -3,7 +3,6 @@ package com.ngleanhvu.dsa_training_system.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

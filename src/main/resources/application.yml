@@ -21,6 +21,8 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
   elasticsearch:
     uris: http://localhost:9200
+    connection-timeout: 5s
+    socket-timeout: 60s
 
 aws:
   access_key_id: ${AWS_ACCESS_KEY_ID}
@@ -40,6 +42,7 @@ page:
 
 server:
   port: 8000
+  address: localhost
 
 
 

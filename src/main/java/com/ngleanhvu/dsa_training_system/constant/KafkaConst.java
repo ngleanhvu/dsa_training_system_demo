@@ -7,4 +7,5 @@ public class KafkaConst {
     public static final String SUBMISSION_TEST_CASE_CREATE_TOPIC = "dsa_training_system_submission_test_case_create_topic";
 
     public static final String PROBLEM_DOCUMENT_CREATE_TOPIC = "dsa_training_system_problem_document_create_topic";
+    public static final String PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC = "dsa_training_system_problem_document_update_accept_rate_topic";
 }

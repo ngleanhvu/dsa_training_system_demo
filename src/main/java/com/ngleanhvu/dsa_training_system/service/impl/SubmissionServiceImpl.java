@@ -3,10 +3,7 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
-import com.ngleanhvu.dsa_training_system.dto.request.SubmissionCreateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.SubmissionRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.SubmissionTestCaseCreateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.SubmissionTestCaseRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.*;
 import com.ngleanhvu.dsa_training_system.dto.response.ListSubmissionResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.OverallResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
@@ -28,6 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -122,11 +122,15 @@ public class SubmissionServiceImpl implements SubmissionService {
                     long timeLimit = problemDetail.getTimeLimit();
                     log.info("Time limit: {}", timeLimit);
 
+                    log.info("response: {}", response);
+
+                    System.out.println(response.getRun() == null);
+
                     if (response.getRun() == null) {
                         response.setStatus(SubmissionStatus.ERROR);
                     } else if (response.getRun().getCode() != null && response.getRun().getCode() != 0) {
                         response.setStatus(SubmissionStatus.COMPILE_ERROR);
-                    } else if (response.getRun().getStatus().equals("TO")) {
+                    } else if (response.getRun().getStatus() != null && response.getRun().getStatus().equals("TO")) {
                         response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED);
                     } else if (memoryUsed > memoryLimit) {
                         response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED);
@@ -155,10 +159,10 @@ public class SubmissionServiceImpl implements SubmissionService {
             }
         }
 
-        double maxCpuTime = getMaxCpuTime(allResponses);
+        int maxCpuTime = getMaxCpuTime(allResponses);
         log.info("Avg CPU Time: {} ms", maxCpuTime);
 
-        double maxMemory = getMaxMemory(allResponses);
+        int maxMemory = getMaxMemory(allResponses);
         log.info("Max Memory: {} ms", maxMemory);
 
         OverallResponse overallResponse = evaluateOverallStatus(allResponses);
@@ -173,8 +177,6 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .status(overallResponse)
                 .build();
 
-        log.info("List submission response: {}", listSubmissionResponse);
-
         List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests = allResponses.stream()
                 .map(r -> SubmissionTestCaseCreateRequest.builder()
                         .testCaseId(r.getTestCaseId())
@@ -182,62 +184,107 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .build())
                 .toList();
 
-        String json = objectMapper.writeValueAsString(submissionTestCaseCreateRequests);
+        SubmissionCreateRequest submissionCreateRequest = SubmissionCreateRequest.builder()
+                .submissionTestCaseCreateRequests(submissionTestCaseCreateRequests)
+                .pass(overallResponse.getPass())
+                .total(overallResponse.getTotal())
+                .programmingLanguageId(programmingLanguage.getProgrammingLanguageId())
+                .problemId(problemDetail.getProblem().getProblemId())
+                .sourceCode(submissionRequest.getSourceCode())
+                .submitTime(LocalDateTime.now())
+                .runtime(maxCpuTime)
+                .memory(maxMemory)
+                .message(overallResponse.getMessage())
+                .status(overallResponse.getStatus())
+                .build();
 
-        kafkaTemplate.send(KafkaConst.SUBMISSION_CREATE_TOPIC, json);
+        String submissionJson = objectMapper.writeValueAsString(submissionCreateRequest);
+
+        log.info("json: {}", submissionJson);
+
+        kafkaTemplate.send(KafkaConst.SUBMISSION_CREATE_TOPIC, submissionJson);
 
         return listSubmissionResponse;
     }
 
-    @Transactional
     @KafkaListener(topics = KafkaConst.SUBMISSION_CREATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     @Override
-    public void createSubmission(String json) throws JsonProcessingException {
+    @Transactional
+    public void createSubmission(String json) {
+        try {
+            SubmissionCreateRequest submissionCreateRequest = objectMapper.readValue(json, SubmissionCreateRequest.class);
 
-        SubmissionCreateRequest submissionCreateRequest = objectMapper.readValue(json, SubmissionCreateRequest.class);
+            log.info("submissionCreateRequest: {}", submissionCreateRequest);
 
-        ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionCreateRequest.getProgrammingLanguageId())
-                .orElseThrow(() -> new ResourceNotFoundException("Language","id",String.valueOf(submissionCreateRequest.getProgrammingLanguageId())));
+            ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionCreateRequest.getProgrammingLanguageId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Language", "id", String.valueOf(submissionCreateRequest.getProgrammingLanguageId())));
 
-        Problem problem = problemRepo.findById(submissionCreateRequest.getProblemId())
-                .orElseThrow(() -> new ResourceNotFoundException("Problem","id",String.valueOf(submissionCreateRequest.getProblemId())));
+            Problem problem = problemRepo.findById(submissionCreateRequest.getProblemId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(submissionCreateRequest.getProblemId())));
 
-        Submission submission = Submission.builder()
-                .submissionStatus(submissionCreateRequest.getStatus())
-                .code(submissionCreateRequest.getSourceCode())
-                .memoryKb(submissionCreateRequest.getMemory())
-                .errorMessage(submissionCreateRequest.getMessage())
-                .runtimeMs(submissionCreateRequest.getRuntime())
-                .testCasesPassed(submissionCreateRequest.getPass())
-                .totalTestCases(submissionCreateRequest.getTotal())
-                .programmingLanguage(programmingLanguage)
-                .problem(problem)
-                .submittedAt(submissionCreateRequest.getSubmitTime())
-                .build();
+            SubmissionStatus statusEnum = AppUtil.fromValue(submissionCreateRequest.getStatus());
 
-        submission = submissionRepo.save(submission);
+            SubmissionCountProjection count = submissionRepo.countSubmissionByProblemAndStatus(
+                    SubmissionStatus.ACCEPTED, problem.getProblemId()
+            );
 
-        SubmissionTestCaseRequest submissionTestCaseCreateRequest = SubmissionTestCaseRequest.builder()
-                .submissionTestCaseCreateRequests(submissionCreateRequest.getSubmissionTestCaseCreateRequests())
-                .submissionId(submission.getSubmissionId())
-                .build();
+            long totalSubmission = (count.getTotalSubmission() != null ? count.getTotalSubmission() : 0L) + 1;
+            long totalAccepted = count.getTotalAccepted() != null ? count.getTotalAccepted() : 0L;
 
-        String submissionTestCaseRequestJson = objectMapper.writeValueAsString(submissionTestCaseCreateRequest);
+            if (statusEnum == SubmissionStatus.ACCEPTED) {
+                totalAccepted += 1;
+            }
 
-        kafkaTemplate.send(KafkaConst.SUBMISSION_TEST_CASE_CREATE_TOPIC, submissionTestCaseRequestJson);
+            double acceptRate = (double) totalAccepted / totalSubmission;
+            BigDecimal roundedRate = BigDecimal.valueOf(acceptRate).setScale(2, RoundingMode.HALF_UP);
+            acceptRate = roundedRate.doubleValue();
+
+            Submission submission = Submission.builder()
+                    .submissionStatus(statusEnum)
+                    .code(submissionCreateRequest.getSourceCode())
+                    .memoryKb(submissionCreateRequest.getMemory())
+                    .errorMessage(submissionCreateRequest.getMessage())
+                    .runtimeMs(submissionCreateRequest.getRuntime())
+                    .testCasesPassed(submissionCreateRequest.getPass())
+                    .totalTestCases(submissionCreateRequest.getTotal())
+                    .programmingLanguage(programmingLanguage)
+                    .problem(problem)
+                    .submittedAt(submissionCreateRequest.getSubmitTime())
+                    .build();
+
+            submission = submissionRepo.save(submission);
+
+            SubmissionTestCaseRequest submissionTestCaseCreateRequest = SubmissionTestCaseRequest.builder()
+                    .submissionTestCaseCreateRequests(submissionCreateRequest.getSubmissionTestCaseCreateRequests())
+                    .submissionId(submission.getSubmissionId())
+                    .build();
+
+            ProblemDocumentUpdateAcceptRateRequest problemDocumentUpdateAcceptRateRequest = ProblemDocumentUpdateAcceptRateRequest.builder()
+                    .acceptRate(acceptRate)
+                    .problemId(problem.getProblemId())
+                    .build();
+
+            String submissionTestCaseRequestJson = objectMapper.writeValueAsString(submissionTestCaseCreateRequest);
+            String problemDocumentUpdateAcceptRateRequestJson = objectMapper.writeValueAsString(problemDocumentUpdateAcceptRateRequest);
+
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC, submissionTestCaseRequestJson, problemDocumentUpdateAcceptRateRequestJson);
+            kafkaTemplate.send(KafkaConst.SUBMISSION_TEST_CASE_CREATE_TOPIC, submissionTestCaseRequestJson);
+        } catch (Exception e) {
+            log.error("Kafka message xử lý thất bại: {}", json, e);
+        }
     }
 
 
-    private static double getMaxCpuTime(List<SubmissionResponse> responses) {
-        return responses.stream()
+    private static int getMaxCpuTime(List<SubmissionResponse> responses) {
+        return (int) responses.stream()
                 .filter(r -> r.getRun() != null)
                 .mapToLong(r -> r.getRun().getCpuTime())
                 .max()
                 .orElse(0);
     }
 
-    private static double getMaxMemory(List<SubmissionResponse> responses) {
-        return responses.stream()
+    private static int getMaxMemory(List<SubmissionResponse> responses) {
+        return (int) responses.stream()
                 .filter(r -> r.getRun() != null)
                 .mapToLong(r -> r.getRun().getMemory())
                 .max()
