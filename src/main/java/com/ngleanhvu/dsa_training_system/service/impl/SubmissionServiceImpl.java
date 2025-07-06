@@ -242,7 +242,10 @@ public class SubmissionServiceImpl implements SubmissionService {
                 totalAccepted += 1;
             }
 
-            double acceptRate = (double) (totalAccepted / totalSubmission)*100;
+            log.info("totalSubmission: {}", totalSubmission);
+            log.info("totalAccepted: {}", totalAccepted);
+
+            double acceptRate = ((double) totalAccepted / totalSubmission) * 100;
             BigDecimal roundedRate = BigDecimal.valueOf(acceptRate).setScale(2, RoundingMode.HALF_UP);
             acceptRate = roundedRate.doubleValue();
 
