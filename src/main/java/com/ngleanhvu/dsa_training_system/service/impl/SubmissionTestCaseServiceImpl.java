@@ -58,7 +58,10 @@ public class SubmissionTestCaseServiceImpl implements SubmissionTestCaseService 
             SubmissionTestCase submissionTestCase = SubmissionTestCase.builder()
                     .submissionStatus(status)
                     .submission(submission)
+                    .memoryKb(submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().get(i).getMemory())
+                    .runtimeMs(submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().get(i).getRuntime())
                     .testCase(testCase)
+                    .status(1)
                     .build();
             submissionTestCases.add(submissionTestCase);
         }

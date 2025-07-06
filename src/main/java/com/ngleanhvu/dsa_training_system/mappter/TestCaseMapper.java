@@ -9,6 +9,7 @@ public class TestCaseMapper {
         return TestCase.builder()
                 .input(request.getInput())
                 .output(request.getOutput())
+                .status(1)
                 .problem(problem)
                 .build();
     }

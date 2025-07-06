@@ -8,5 +8,7 @@ import lombok.Data;
 @Builder
 public class SubmissionTestCaseCreateRequest {
     private int testCaseId;
+    private int memory;
+    private int runtime;
     private SubmissionStatus status;
 }

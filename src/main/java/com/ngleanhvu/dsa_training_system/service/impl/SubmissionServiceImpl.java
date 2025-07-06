@@ -91,6 +91,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                     params.put("run_timeout", problemDetail.getTimeLimit());
                     params.put("run_memory_limit", problemDetail.getMemoryLimit());
 
+                    log.info("params: {}", params);
+
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
@@ -102,6 +104,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     if (response == null) {
                         return SubmissionResponse.builder()
                                 .status(SubmissionStatus.NULL_RESPONSE)
+
                                 .input(testCase.getInput())
                                 .expectOutput(testCase.getOutput())
                                 .build();
@@ -180,9 +183,13 @@ public class SubmissionServiceImpl implements SubmissionService {
         List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests = allResponses.stream()
                 .map(r -> SubmissionTestCaseCreateRequest.builder()
                         .testCaseId(r.getTestCaseId())
+                        .runtime(r.getRun().getCpuTime())
+                        .memory(r.getRun().getMemory())
                         .status(r.getStatus())
                         .build())
                 .toList();
+
+        log.info("submissionTestCaseCreateRequests: {}", submissionTestCaseCreateRequests);
 
         SubmissionCreateRequest submissionCreateRequest = SubmissionCreateRequest.builder()
                 .submissionTestCaseCreateRequests(submissionTestCaseCreateRequests)
@@ -250,6 +257,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .programmingLanguage(programmingLanguage)
                     .problem(problem)
                     .submittedAt(submissionCreateRequest.getSubmitTime())
+                    .status(1)
                     .build();
 
             submission = submissionRepo.save(submission);
@@ -263,6 +271,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .acceptRate(acceptRate)
                     .problemId(problem.getProblemId())
                     .build();
+
+            log.info("problemDocumentUpdateAcceptRateRequest: {}", problemDocumentUpdateAcceptRateRequest);
 
             String submissionTestCaseRequestJson = objectMapper.writeValueAsString(submissionTestCaseCreateRequest);
             String problemDocumentUpdateAcceptRateRequestJson = objectMapper.writeValueAsString(problemDocumentUpdateAcceptRateRequest);
