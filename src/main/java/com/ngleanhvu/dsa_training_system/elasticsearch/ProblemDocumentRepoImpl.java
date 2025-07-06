@@ -74,11 +74,13 @@ public class ProblemDocumentRepoImpl  {
     }
 
     public void updateAcceptRateByProblemId(Integer problemId, double acceptRate) {
+        log.info("updateAcceptRateByProblemId: {}", problemId);
+        log.info("acceptRate: {}", acceptRate);
         try {
             elasticsearchClient.update(u -> u
                             .index("problem_index")
                             .id(problemId.toString())
-                            .doc(Map.of("acceptanceRate;", acceptRate))
+                            .doc(Map.of("acceptanceRate", acceptRate))
                     , Map.class);
         } catch (IOException e) {
             log.error("Elasticsearch update failed", e);

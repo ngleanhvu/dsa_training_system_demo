@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateAcceptRateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,9 +48,10 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
 
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void updateAcceptRate(String json) throws JsonProcessingException {
-        ProblemDocumentCreateRequest problemDocumentCreateRequest = objectMapper.readValue(json, ProblemDocumentCreateRequest.class);
-        problemDocumentRepoImpl.updateAcceptRateByProblemId(problemDocumentCreateRequest.getProblemId(),
-                problemDocumentCreateRequest.getAcceptanceRate());
+        ProblemDocumentUpdateAcceptRateRequest problemDocumentUpdateAcceptRateRequest = objectMapper.readValue(json, ProblemDocumentUpdateAcceptRateRequest.class);
+        log.info("problem update accept rate request: {}", problemDocumentUpdateAcceptRateRequest);
+        problemDocumentRepoImpl.updateAcceptRateByProblemId(problemDocumentUpdateAcceptRateRequest.getProblemId(),
+                problemDocumentUpdateAcceptRateRequest.getAcceptRate());
     }
 
 }
