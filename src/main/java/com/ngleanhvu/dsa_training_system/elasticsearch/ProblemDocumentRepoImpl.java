@@ -2,8 +2,8 @@ package com.ngleanhvu.dsa_training_system.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +14,8 @@ import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHitSupport;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Component;
-
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +49,9 @@ public class ProblemDocumentRepoImpl  {
 
                 applyFilter(searchRequest.getDifficultyIds(), "difficultyId", isAll, b);
                 applyFilter(searchRequest.getTopicIds(), "topic", isAll, b);
-
+                applyDateRange(searchRequest.getPublishedDateRange(), "createdAt", isAll, b);
+                applyNumberRange(searchRequest.getAcceptanceRateRange(), "acceptanceRate", isAll, b);
+                applyNumberRange(searchRequest.getQuestionIdRange(), "id", isAll, b);
                 return b;
             }));
         }
@@ -87,6 +89,42 @@ public class ProblemDocumentRepoImpl  {
         }
     }
 
+    private <T> void applyDateRange(RangeRequest<T> range, String fieldName, boolean isAll, BoolQuery.Builder b) {
+        if (range == null || (range.getFrom() == null && range.getTo() == null)) {
+            return;
+        }
+
+        Query query = Query.of(q -> q.range(r -> r.date(DateRangeQuery.of(f -> f.field(fieldName)
+                .gte((String) range.getFrom())
+                .lte((String) range.getTo()))
+        )));
+
+        if (isAll) {
+            b.must(query);
+        } else {
+            b.should(query);
+        }
+    }
+
+    private <T> void applyNumberRange(RangeRequest<T> range, String fieldName, boolean isAll, BoolQuery.Builder b) {
+        if (range == null || (range.getFrom() == null && range.getTo() == null)) {
+            return;
+        }
+
+        log.info("range: {}", range);
+
+        Query query = Query.of(q -> q.range(r -> r.number(NumberRangeQuery.of(f -> f.field(fieldName)
+                .gte((Double) range.getFrom())
+                .lte((Double) range.getTo()))
+        )));
+
+        if (isAll) {
+            b.must(query);
+        } else {
+            b.should(query);
+        }
+    }
+
     private void applyFilter(Map<String, List<Integer>> filterMap, String fieldName, boolean isAll, BoolQuery.Builder b) {
         if (filterMap != null && !filterMap.isEmpty()) {
             String key = filterMap.keySet().iterator().next();
@@ -115,7 +153,9 @@ public class ProblemDocumentRepoImpl  {
         return (request.getTitle() == null || request.getTitle().isBlank())
                 && (request.getDifficultyIds() == null || request.getDifficultyIds().isEmpty())
                 && (request.getTopicIds() == null || request.getTopicIds().isEmpty())
-                && (request.getStatus() == null || request.getStatus().isEmpty());
+                && (request.getStatus() == null || request.getStatus().isEmpty())
+                && (request.getAcceptanceRateRange() == null)
+                && (request.getPublishedDateRange() == null)
+                && (request.getQuestionIdRange() == null);
     }
-
 }

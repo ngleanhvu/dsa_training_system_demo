@@ -73,7 +73,7 @@ public class ProblemServiceImpl implements ProblemService {
         problemTopicRepo.saveAll(problemTopics);
 
         String constraintsJson = objectMapper.writeValueAsString(!request.getConstraints().isEmpty() ? request.getConstraints() : Collections.emptyList());
-        String hintsJson = objectMapper.writeValueAsString(!request.getHints().isEmpty() ? request.getHints() : Collections.emptyList());
+        String hintsJson = objectMapper.writeValueAsString(request.getHints() != null && !request.getHints().isEmpty() ? request.getHints() : Collections.emptyList());
 
         ProblemDetail problemDetail = ProblemDetail.builder()
                 .problem(problem)

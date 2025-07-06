@@ -1,6 +1,5 @@
-package com.ngleanhvu.dsa_training_system.elasticsearch;
+package com.ngleanhvu.dsa_training_system.dto.request;
 
-import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +17,6 @@ public class ProblemSearchRequest {
     private Map<String, List<Integer>> difficultyIds;
     private RangeRequest<Double> questionIdRange;
     private RangeRequest<Double> acceptanceRateRange;
-    private RangeRequest<String> publishedDateRange;
+    private RangeRequest<LocalDate> publishedDateRange;
     private List<SubmissionStatus> status;
 }

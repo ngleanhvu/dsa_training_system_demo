@@ -45,7 +45,5 @@ public class ProblemDocument {
 
     @Field(type = FieldType.Date, format = DateFormat.date)
     private LocalDate createdAt;
-
-
 }
 

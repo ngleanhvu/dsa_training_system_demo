@@ -42,6 +42,7 @@ public class ProblemController {
                                            @RequestParam(required = false, defaultValue = "id") String sortBy,
                                            @RequestParam(required = false, defaultValue = "asc") String sortDirection,
                                            @RequestParam(required = false, defaultValue = "0") Integer page) {
+
         log.info("Searching problem: {}", problemSearchRequest);
 
         PagingSearch pagingSearch = new PagingSearch();
