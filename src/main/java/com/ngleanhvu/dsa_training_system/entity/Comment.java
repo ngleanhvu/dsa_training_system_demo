@@ -31,6 +31,9 @@ public class Comment {
     @Column(name = "views")
     private Integer views = 0;
 
+    @Column(name = "comment_count")
+    private Integer commentCount = 0;
+
     @Column(name = "up_votes")
     private Integer upVotes = 0;
 

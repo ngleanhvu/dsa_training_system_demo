@@ -1,0 +1,1 @@
+alter table comments add column comment_count int default 0;

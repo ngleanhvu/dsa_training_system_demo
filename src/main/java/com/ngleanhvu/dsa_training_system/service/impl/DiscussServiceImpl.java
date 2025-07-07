@@ -1,6 +1,8 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.Discuss;
 import com.ngleanhvu.dsa_training_system.entity.DiscussTag;
 import com.ngleanhvu.dsa_training_system.entity.Tag;
@@ -13,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,5 +57,10 @@ public class DiscussServiceImpl implements DiscussService {
         }
 
         discussTagRepo.saveAll(discussTags);
+    }
+
+    @Override
+    public List<DiscussResponse> getDiscusses(String keyword, PagingSearch pagingSearch) {
+        return List.of();
     }
 }
