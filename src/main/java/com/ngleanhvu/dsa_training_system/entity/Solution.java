@@ -19,7 +19,7 @@ public class Solution {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer solutionId;
 
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "discuss_id", nullable = false)
     private Discuss discuss;
 
