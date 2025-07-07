@@ -181,36 +181,62 @@ CREATE TABLE submissions (
 	foreign key(programming_language_id) references programming_languages(programming_language_id)
 );
 
-create table user_problem_status (
-	user_problem_status_id int primary key auto_increment,
-    user_id varchar(36) not null,
-    problem_id int not null,
-    problem_status enum('Accepted', 'Attempted') not null default 'Attempted',
-    best_submission_id int,
-    attempts int default 1,
-    first_solved_at  datetime null,
-    last_attempt_at datetime default current_timestamp,
-    status int default 1,
-    created_at datetime default current_timestamp,
-    updated_at datetime default current_timestamp on update current_timestamp,
-    foreign key (user_id) references users(user_id),
-    foreign key (problem_id) references problems(problem_id),
-    foreign key (best_submission_id) references submissions(submission_id)
+create table discuss (
+                         discuss_id int primary key auto_increment,
+                         title varchar(255) not null,
+                         content TEXT not null,
+                         views int default 0,
+                         up_votes int default 0,
+                         down_votes int default 0,
+                         status int default 1,
+                         created_at datetime default current_timestamp,
+                         updated_at datetime default current_timestamp
 );
 
 create table comments (
-	comment_id int primary key auto_increment,
-    user_id varchar(36) not null,
-    parent_comment_id int null, 
-    problem_id int not null,
-    content text not null,
-    upvotes INT DEFAULT 0,
-    status int default 1,
-    created_at datetime default current_timestamp,
-    updated_at datetime default current_timestamp on update current_timestamp,
-    foreign key (user_id) references users(user_id),
-    foreign key (parent_comment_id) references comments(comment_id),
-    foreign key (problem_id) references problems(problem_id)
+                          comment_id int primary key auto_increment,
+                          content text not null,
+                          discuss_id int not null,
+                          parent_id int default null,
+                          up_votes int default 0,
+                          down_votes int default 0,
+                          status int default 1,
+                          created_at datetime default current_timestamp,
+                          updated_at datetime default current_timestamp,
+                          foreign key (discuss_id) references discuss(discuss_id),
+                          foreign key (parent_id) references comments(comment_id)
+);
+
+create table tags (
+                      tag_id int primary key auto_increment,
+                      name varchar(50) not null unique,
+                      status int default 1,
+                      created_at datetime default current_timestamp,
+                      updated_at datetime default current_timestamp
+);
+
+create table discuss_tags (
+                              discuss_tag_id int primary key auto_increment,
+                              tag_id int not null,
+                              discuss_id int not null,
+                              unique (tag_id, discuss_id),
+                              status int default 1,
+                              created_at datetime default current_timestamp,
+                              updated_at datetime default current_timestamp,
+                              foreign key (tag_id) references tags(tag_id),
+                              foreign key (discuss_id) references discuss(discuss_id)
+);
+
+create table solutions (
+                           solution_id int primary key auto_increment,
+                           discuss_id int not null,
+                           problem_id int not null,
+                           status int default 1,
+                           created_at datetime default current_timestamp,
+                           updated_at datetime default current_timestamp,
+                           unique (discuss_id, problem_id),
+                           foreign key (discuss_id) references discuss(discuss_id),
+                           foreign key (problem_id) references problems(problem_id)
 );
 
 
