@@ -1,4 +1,9 @@
--- Chủ đề thuật toán & cấu trúc dữ liệu nâng cao
+INSERT INTO tags (name) VALUES
+    ('Career'),
+    ('Feedback'),
+    ('Interview'),
+    ('Compensation');
+
 INSERT INTO tags (name) VALUES
     ('Greedy'),
     ('Backtracking'),
@@ -46,15 +51,10 @@ INSERT INTO tags (name) VALUES
     ('Probability'),
     ('Game Theory'),
     ('Simulation'),
+    ('Array'),
     ('Randomized Algorithms');
 
 INSERT INTO tags (name) VALUES
     ('JavaScript'),
     ('C'),
     ('C++');
-
-INSERT INTO tags (name) VALUES
-    ('Career'),
-    ('Feedback'),
-    ('Interview'),
-    ('Compensation');

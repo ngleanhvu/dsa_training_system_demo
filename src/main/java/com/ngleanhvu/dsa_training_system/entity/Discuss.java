@@ -4,29 +4,29 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "problems")
-@Builder @NoArgsConstructor @AllArgsConstructor @Data
-public class Problem {
+@Table(name = "discuss")
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class Discuss {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer problemId;
+    private Integer discussId;
 
     private String title;
 
-    @Column(length = 200)
-    private String slug;
+    @Lob
+    private String content;
 
-    @ManyToOne
-    @JoinColumn(name = "difficulty_id", nullable = false)
-    private Difficulty difficulty;
+    @Column(name = "views")
+    private Integer views = 0;
 
-    @Column(precision = 5, scale = 2)
-    private BigDecimal acceptanceRate = BigDecimal.ZERO;
+    @Column(name = "up_votes")
+    private Integer upVotes = 0;
+
+    @Column(name = "down_votes")
+    private Integer downVotes = 0;
 
     private Integer status = 1;
 
@@ -35,4 +35,6 @@ public class Problem {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
 }
+

@@ -1,32 +1,25 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "problems")
+@Table(name = "tags")
 @Builder @NoArgsConstructor @AllArgsConstructor @Data
-public class Problem {
+public class Tag {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer problemId;
+    private Integer tagId;
 
-    private String title;
-
-    @Column(length = 200)
-    private String slug;
-
-    @ManyToOne
-    @JoinColumn(name = "difficulty_id", nullable = false)
-    private Difficulty difficulty;
-
-    @Column(precision = 5, scale = 2)
-    private BigDecimal acceptanceRate = BigDecimal.ZERO;
+    @Column(nullable = false, unique = true)
+    private String name;
 
     private Integer status = 1;
 
@@ -36,3 +29,4 @@ public class Problem {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 }
+
