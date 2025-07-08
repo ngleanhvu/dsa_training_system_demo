@@ -1,5 +1,6 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
+import com.ngleanhvu.dsa_training_system.converter.UserRoleConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -24,8 +25,9 @@ public class User {
     @Column(length = 255)
     private String avatar;
 
+    @Convert(converter = UserRoleConverter.class)
     @Enumerated(EnumType.STRING)
-    private Role role = Role.USER;
+    private UserRole role = UserRole.USER;
 
     private Integer status = 1;
 
@@ -35,8 +37,5 @@ public class User {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public enum Role {
-        ADMIN, USER
-    }
 
 }
