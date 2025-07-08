@@ -13,6 +13,7 @@ import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
@@ -61,6 +62,23 @@ public class DiscussServiceImpl implements DiscussService {
 
     @Override
     public List<DiscussResponse> getDiscusses(String keyword, PagingSearch pagingSearch) {
-        return List.of();
+        log.info("keyword: {}", keyword);
+        Page<Discuss> discusses = discussRepo.findDiscusses(keyword, pagingSearch.toPageable());
+        log.info("discusses: {}", discusses);
+        List<DiscussResponse> discussResponses = discusses.stream()
+                .map(d -> DiscussResponse.builder()
+                        .title(d.getTitle())
+                        .content(d.getContent())
+                        .createdAt(d.getCreatedAt())
+                        .upVotes(d.getUpVotes())
+                        .downVotes(d.getDownVotes())
+                        .views(d.getViews())
+                        .userAvatar(d.getUser().getAvatar())
+                        .userEmail(d.getUser().getEmail())
+                        .userDisplayName(d.getUser().getDisplayName())
+                        .build())
+                .toList();
+        log.info("discussResponses: {}", discussResponses);
+        return discussResponses;
     }
 }

@@ -10,11 +10,13 @@ import java.time.LocalDateTime;
 public class DiscussResponse {
     private String title;
     private String content;
-    private String userEmail;
-    private String userAvatar;
     private int upVotes;
     private int downVotes;
     private int comments;
     private int views;
     private LocalDateTime createdAt;
+
+    private String userEmail;
+    private String userAvatar;
+    private String userDisplayName;
 }

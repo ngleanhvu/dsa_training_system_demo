@@ -40,6 +40,9 @@ public class Comment {
     @Column(name = "down_votes")
     private Integer downVotes = 0;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    private User user;
+
     private Integer status = 1;
 
     @CreationTimestamp

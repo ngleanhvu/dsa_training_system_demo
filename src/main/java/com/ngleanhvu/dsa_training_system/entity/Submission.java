@@ -51,6 +51,9 @@ public class Submission {
     @Column(nullable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User user;
+
     private Integer status = 1;
 
     @CreationTimestamp
