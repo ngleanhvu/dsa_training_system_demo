@@ -26,7 +26,7 @@ create table if not exists problems (
               status int default 1,
               created_at datetime default current_timestamp,
               updated_at datetime default current_timestamp on update current_timestamp,
-              foreign key (difficulty_id) references difficulties(difficulty_id)
+              foreign key (difficulty_id) references difficulties(difficulty_id) on delete cascade
 );
 
 create table if not exists problem_details (
@@ -40,7 +40,7 @@ create table if not exists problem_details (
               status int default 1,
               created_at datetime default current_timestamp,
               updated_at datetime default current_timestamp on update current_timestamp,
-              foreign key (problem_id) references problems(problem_id)
+              foreign key (problem_id) references problems(problem_id) on delete cascade
 );
 
 create table if not exists examples (
@@ -53,7 +53,7 @@ create table if not exists examples (
              status int default 1,
              created_at datetime default current_timestamp,
              updated_at datetime default current_timestamp on update current_timestamp,
-             foreign key (problem_id) references problems(problem_id)
+             foreign key (problem_id) references problems(problem_id) on delete cascade
 );
 
 create table if not exists problems_topics (
@@ -63,8 +63,8 @@ create table if not exists problems_topics (
              status int default 1,
              created_at datetime default current_timestamp,
              updated_at datetime default current_timestamp on update current_timestamp,
-             foreign key (problem_id) references problems(problem_id),
-             foreign key (topic_id) references topics(topic_id),
+             foreign key (problem_id) references problems(problem_id) on delete cascade ,
+             foreign key (topic_id) references topics(topic_id) on delete cascade,
              unique (topic_id, problem_id)
 );
 
@@ -76,7 +76,7 @@ create table if not exists test_cases (
             status int default 1,
             created_at datetime default current_timestamp,
             updated_at datetime default current_timestamp on update current_timestamp,
-            foreign key (problem_id) references problems(problem_id)
+            foreign key (problem_id) references problems(problem_id) on delete cascade
 );
 
 create table if not exists programming_languages (
@@ -106,7 +106,7 @@ CREATE TABLE if not exists submissions (
             status int default 1,
             created_at datetime default current_timestamp,
             updated_at datetime default current_timestamp on update current_timestamp,
-            foreign key (problem_id) references problems(problem_id),
-            foreign key (programming_language_id) references programming_languages(programming_language_id)
+            foreign key (problem_id) references problems(problem_id) on delete cascade ,
+            foreign key (programming_language_id) references programming_languages(programming_language_id) on delete cascade
 );
 

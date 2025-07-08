@@ -20,8 +20,8 @@ create table comments (
       status int default 1,
       created_at datetime default current_timestamp,
       updated_at datetime default current_timestamp,
-      foreign key (discuss_id) references discuss(discuss_id),
-      foreign key (parent_id) references comments(comment_id)
+      foreign key (discuss_id) references discuss(discuss_id) on delete cascade ,
+      foreign key (parent_id) references comments(comment_id) on delete cascade
 );
 
 create table tags (
@@ -40,8 +40,8 @@ create table discuss_tags (
       status int default 1,
       created_at datetime default current_timestamp,
       updated_at datetime default current_timestamp,
-      foreign key (tag_id) references tags(tag_id),
-      foreign key (discuss_id) references discuss(discuss_id)
+      foreign key (tag_id) references tags(tag_id) on delete cascade ,
+      foreign key (discuss_id) references discuss(discuss_id) on delete cascade
 );
 
 create table solutions (
@@ -52,6 +52,6 @@ create table solutions (
        created_at datetime default current_timestamp,
        updated_at datetime default current_timestamp,
        unique (discuss_id, problem_id),
-       foreign key (discuss_id) references discuss(discuss_id),
-       foreign key (problem_id) references problems(problem_id)
+       foreign key (discuss_id) references discuss(discuss_id) on delete cascade ,
+       foreign key (problem_id) references problems(problem_id) on delete cascade
 );

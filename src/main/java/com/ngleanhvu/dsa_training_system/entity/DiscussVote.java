@@ -7,37 +7,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "comments")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class Comment {
+@Table(name = "discusses_votes")
+@Builder @AllArgsConstructor @NoArgsConstructor @Data
+public class DiscussVote {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer commentId;
+    @Column(name = "discuss_vote_id")
+    private Integer discussVoteId;
 
-    @Lob
-    private String content;
-
+    @JoinColumn(name = "discuss_id")
     @ManyToOne
-    @JoinColumn(name = "discuss_id", nullable = false)
     private Discuss discuss;
 
+    @JoinColumn(name = "user_id")
     @ManyToOne
-    @JoinColumn(name = "parent_id")
-    private Comment parent;
-
-    @Column(name = "views")
-    private Integer views = 0;
-
-    @Column(name = "comment_count")
-    private Integer commentCount = 0;
-
-    @Column(name = "up_votes")
-    private Integer upVotes = 0;
-
-    @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 
     private Integer status = 1;
@@ -48,4 +35,3 @@ public class Comment {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 }
-

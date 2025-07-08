@@ -5,7 +5,7 @@ create table auth_local (
         status int default 1,
         created_at datetime default current_timestamp,
         updated_at datetime default current_timestamp ON UPDATE current_timestamp,
-        foreign key (user_id) references users(user_id)
+        foreign key (user_id) references users(user_id) on delete cascade
 );
 
 create table auth_oauth2 (
@@ -18,6 +18,6 @@ create table auth_oauth2 (
          created_at datetime default current_timestamp,
          updated_at datetime default current_timestamp on update current_timestamp,
          unique (provider, provider_user_id),
-         foreign key (user_id) references users(user_id)
+         foreign key (user_id) references users(user_id) on delete cascade
 );
 

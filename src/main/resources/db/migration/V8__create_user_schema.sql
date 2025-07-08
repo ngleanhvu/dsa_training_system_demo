@@ -22,7 +22,7 @@ create table user_details (
       status int default 1,
       created_at datetime default current_timestamp,
       updated_at datetime default current_timestamp on update current_timestamp,
-      foreign key (user_id) references users(user_id)
+      foreign key (user_id) references users(user_id) on delete cascade
 );
 
 CREATE TABLE user_statistics (
@@ -38,5 +38,5 @@ CREATE TABLE user_statistics (
      languages JSON,
      created_at datetime default current_timestamp,
      updated_at datetime default current_timestamp on update current_timestamp,
-     foreign key (user_id) references users(user_id)
+     foreign key (user_id) references users(user_id) on delete cascade
 );

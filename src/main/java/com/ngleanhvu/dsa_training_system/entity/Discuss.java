@@ -25,8 +25,8 @@ public class Discuss {
     @Column(name = "up_votes")
     private Integer upVotes = 0;
 
-    @Column(name = "down_votes")
-    private Integer downVotes = 0;
+    @Column(name = "comment_count")
+    private Integer commentCount = 0;
 
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;
