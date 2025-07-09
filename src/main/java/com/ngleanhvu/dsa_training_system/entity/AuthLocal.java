@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "auth_local")
+@Builder
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
