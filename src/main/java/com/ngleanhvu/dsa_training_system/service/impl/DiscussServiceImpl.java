@@ -84,7 +84,7 @@ public class DiscussServiceImpl implements DiscussService {
 
     @Transactional
     @Override
-    public void toggleVote(Integer userId,
+    public void toggleVote(String userId,
                            Integer discussId) {
         Discuss discuss = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss","id", String.valueOf(discussId)));

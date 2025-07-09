@@ -101,7 +101,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Transactional
     @Override
-    public void toggleVote(Integer userId, Integer commentId) {
+    public void toggleVote(String userId, Integer commentId) {
         Comment comment = commentRepo.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
 

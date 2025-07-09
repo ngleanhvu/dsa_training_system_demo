@@ -26,7 +26,6 @@ public class User {
     private String avatar;
 
     @Convert(converter = UserRoleConverter.class)
-    @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;
 
     private Integer status = 1;
@@ -37,5 +36,6 @@ public class User {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private AuthLocal authLocal;
 }

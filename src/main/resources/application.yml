@@ -8,6 +8,11 @@ spring:
   flyway:
     locations: classpath:db/migration
     enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          public-key-location: classpath:keys/public-key.pem
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -39,6 +44,11 @@ piston:
 
 page:
   size: 20
+
+jwt:
+  expiration:
+    access_token: 600
+    refresh_token: 604800
 
 server:
   port: 8000

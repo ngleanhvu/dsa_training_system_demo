@@ -12,7 +12,7 @@ import java.util.List;
 public interface DiscussService {
     void createDiscuss(DiscussCreateRequest request);
     List<DiscussResponse> getDiscusses(String keyword, PagingSearch pagingSearch);
-    void toggleVote(Integer userId, Integer discussId);
+    void toggleVote(String userId, Integer discussId);
     void deleteDiscuss(Integer discussId);
     void updateDiscuss(Integer discussId, DiscussUpdateRequest request);
 }

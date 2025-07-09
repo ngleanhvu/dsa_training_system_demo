@@ -15,7 +15,7 @@ public interface CommentService {
 
     List<CommentResponse> getChildCommentsByParentComment(Integer parentCommentId, PagingSearch pagingSearch);
 
-    void toggleVote(Integer userId, Integer commentId);
+    void toggleVote(String userId, Integer commentId);
     void updateComment(Integer commentId, CommentUpdateRequest commentUpdateRequest);
     void deleteComment(Integer commentId);
 }

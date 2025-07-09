@@ -54,6 +54,7 @@ public class CommentController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
+
     @GetMapping("/discuss/{discussId}")
     public ResponseEntity<?> getDiscuss(@PathVariable("discussId") Integer discussId,
                                         @RequestParam(required = false, defaultValue = "createdAt") String sortBy,

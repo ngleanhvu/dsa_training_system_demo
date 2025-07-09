@@ -95,9 +95,11 @@ public class AuthServiceImpl implements AuthService {
                 .email(email)
                 .passwordHash(passwordEncoder.encode(password))
                 .status(1)
+                .user(user)
                 .build();
 
-        authLocalRepo.save(authLocal);
+        user.setAuthLocal(authLocal);
+
         userRepo.save(user);
     }
 

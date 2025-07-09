@@ -11,8 +11,8 @@ import java.util.Base64;
 
 public class RsaKeyUtil {
 
-    private static final String PRIVATE_PATH = "keys/dsa_project.pem";
-    private static final String PUBLIC_PATH = "keys/dsa_project.pem.pub";
+    private static final String PRIVATE_PATH = "keys/private-key.pem";
+    private static final String PUBLIC_PATH = "keys/public-key.pem";
 
     public static RSAPrivateKey getPrivateKey() throws Exception {
         String content = readKeyFromClasspath(PRIVATE_PATH)

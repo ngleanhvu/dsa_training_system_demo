@@ -1,20 +1,29 @@
 package com.ngleanhvu.dsa_training_system.security;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.security.interfaces.RSAPublicKey;
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
+@Slf4j
 public class SecurityConfig {
 
-    private final String [] publicEndpoints = {"/login"};
+    private final String [] publicEndpoints = {"/api/v1/auths/login","/api/v1/auths/register"};
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -24,27 +33,37 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .csrf().disable()
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(publicEndpoints).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/register").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2
-                        .jwt(jwt -> jwt
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        )
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 );
         return http.build();
     }
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
-        converter.setAuthorityPrefix("ROLE_");
-        converter.setAuthoritiesClaimName("role");
-
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
-        jwtConverter.setJwtGrantedAuthoritiesConverter(converter);
+
+        jwtConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            String role = jwt.getClaimAsString("role");
+            log.info("Role: {}", role);
+            if (role == null) return List.of();
+            String authority = "ROLE_" + role.toUpperCase();
+            return List.of(new SimpleGrantedAuthority(authority));
+        });
+
         return jwtConverter;
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() throws Exception {
+        RSAPublicKey publicKey = RsaKeyUtil.getPublicKey();
+        return NimbusJwtDecoder.withPublicKey(publicKey).build();
     }
 
 }
