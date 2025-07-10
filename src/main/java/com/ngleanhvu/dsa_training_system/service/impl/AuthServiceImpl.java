@@ -9,6 +9,7 @@ import com.ngleanhvu.dsa_training_system.entity.User;
 import com.ngleanhvu.dsa_training_system.entity.UserRole;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.redis.RedisKey;
 import com.ngleanhvu.dsa_training_system.repo.AuthLocalRepo;
 import com.ngleanhvu.dsa_training_system.repo.UserRepo;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
@@ -17,6 +18,8 @@ import com.ngleanhvu.dsa_training_system.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.InvalidCredentialsException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -24,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +41,12 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final UserRepo userRepo;
     private final S3Service s3Service;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    @Value("${jwt.expiration.refresh_token}")
+    private long refreshTokenExpiration;
+
+
 
     @Override
     public LoginResponse login(LoginRequest loginRequest) throws InvalidCredentialsException {
@@ -53,6 +64,14 @@ public class AuthServiceImpl implements AuthService {
 
         String accessToken = jwtUtil.generateAccessToken(authRecord);
         String refreshToken = jwtUtil.generateRefreshToken(authRecord);
+
+        String jti = jwtUtil.getJti(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        Date expiration = jwtUtil.getExpiration(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        stringRedisTemplate.opsForValue().set(RedisKey.generateRefreshKey(authRecord.userid(), jti), String.valueOf(expiration.getTime()), refreshTokenExpiration, TimeUnit.SECONDS);
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
@@ -102,5 +121,53 @@ public class AuthServiceImpl implements AuthService {
 
         userRepo.save(user);
     }
+
+    @Override
+    public LoginResponse refresh(String refreshToken) {
+        String jti = jwtUtil.getJti(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Invalid refresh token"));
+
+        String blackListKey = RedisKey.generateBlackListKey(jti);
+
+        if (stringRedisTemplate.hasKey(blackListKey)) {
+            throw new InvalidValueException("Refresh revoked");
+        }
+
+        String authId = jwtUtil.getSubject(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Invalid refresh token"));
+
+        AuthLocal authLocal = authLocalRepo.findById(authId)
+                .orElseThrow(() -> new ResourceNotFoundException("Auth local","email",authId));
+
+        User user = authLocal.getUser();
+
+        AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());
+
+        return LoginResponse.builder()
+                .accessToken(jwtUtil.generateAccessToken(authRecord))
+                .build();
+    }
+
+    @Override
+    public void logout(String refreshToken) {
+        String jti = jwtUtil.getJti(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        String authId = jwtUtil.getSubject(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        Date expiration = jwtUtil.getExpiration(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        long ttl = expiration.getTime() - System.currentTimeMillis() > 0 ? expiration.getTime() : 0;
+
+        String key = RedisKey.generateRefreshKey(authId, jti);
+
+        if (stringRedisTemplate.hasKey(key)) {
+            stringRedisTemplate.delete(key);
+            stringRedisTemplate.opsForValue().set(RedisKey.generateBlackListKey(jti), String.valueOf(1), ttl, TimeUnit.SECONDS);
+        }
+    }
+
 
 }
