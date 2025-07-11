@@ -1,5 +1,6 @@
 package com.ngleanhvu.dsa_training_system.security;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,9 +22,10 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @Slf4j
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final String [] publicEndpoints = {"/api/v1/auths/login","/api/v1/auths/register"};
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -37,9 +39,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/logout").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 );
         return http.build();

@@ -23,6 +23,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType("application/json");
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 
-        response.getWriter().write("{\"error\": \"Unauthorized access - please provide valid token.\"}");
+        response.getWriter().write("{\"error\": \"Forbidden\"}");
     }
 }

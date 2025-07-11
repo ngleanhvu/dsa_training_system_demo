@@ -1,6 +1,7 @@
 package com.ngleanhvu.dsa_training_system.controller;
 
 import com.ngleanhvu.dsa_training_system.dto.request.LoginRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.RefreshRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.service.AuthService;
@@ -40,6 +41,29 @@ public class AuthController {
                 .status(HttpStatus.CREATED.name())
                 .build();
         return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
+    }
+
+    @PostMapping("refresh")
+    public ResponseEntity<?> refresh(@RequestBody RefreshRequest refreshRequest) {
+        var response = authService.refresh(refreshRequest.getRefreshToken());
+        var apiResponse = ApiResponse.builder()
+                .message("Refresh success")
+                .status(HttpStatus.OK.name())
+                .metadata(response)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(value = HttpStatus.NO_CONTENT)
+    public ResponseEntity<?> logout(@RequestBody RefreshRequest refreshRequest) {
+        authService.logout(refreshRequest.getRefreshToken());
+        var apiResponse = ApiResponse.builder()
+                .message("Logout success")
+                .status(HttpStatus.OK.name())
+                .metadata(null)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
 }

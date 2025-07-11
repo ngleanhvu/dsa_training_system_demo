@@ -257,6 +257,82 @@ create table solutions (
     foreign key (problem_id) references problems(problem_id)
 );
 
+CREATE TABLE contests (
+                          contest_id INT PRIMARY KEY AUTO_INCREMENT,
+                          title VARCHAR(255) NOT NULL,
+                          slug VARCHAR(255) UNIQUE NOT NULL,
+                          description TEXT,
+                          start_time DATETIME NOT NULL,
+                          duration_minutes INT DEFAULT 90,
+                          is_rated BOOLEAN DEFAULT TRUE,
+                          status ENUM('UPCOMING', 'ONGOING', 'FINISHED') DEFAULT 'UPCOMING',
+                          created_by VARCHAR(36),
+                          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                          FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+CREATE TABLE contest_problems (
+                                  contest_problem_id INT PRIMARY KEY AUTO_INCREMENT,
+                                  contest_id INT NOT NULL,
+                                  problem_id INT NOT NULL,
+                                  score INT DEFAULT 100,
+                                  order_index INT DEFAULT 1,
+                                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                  FOREIGN KEY (contest_id) REFERENCES contests(contest_id),
+                                  FOREIGN KEY (problem_id) REFERENCES problems(problem_id),
+                                  UNIQUE (contest_id, problem_id)
+);
+
+
+CREATE TABLE contest_participants (
+                                      id INT PRIMARY KEY AUTO_INCREMENT,
+                                      contest_id INT NOT NULL,
+                                      user_id VARCHAR(36) NOT NULL,
+                                      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                      status ENUM('joined', 'disqualified', 'finished') DEFAULT 'joined',
+                                      FOREIGN KEY (contest_id) REFERENCES contests(contest_id),
+                                      FOREIGN KEY (user_id) REFERENCES users(user_id),
+                                      UNIQUE (contest_id, user_id)
+);
+
+
+CREATE TABLE contest_submissions (
+                                     contest_submission_id INT PRIMARY KEY AUTO_INCREMENT,
+                                     submission_id INT NOT NULL UNIQUE,
+                                     contest_id INT NOT NULL,
+                                     user_id VARCHAR(36) NOT NULL,
+                                     problem_id INT NOT NULL,
+
+    -- Optionally copy lại thông tin cho truy xuất nhanh (denormalized)
+                                     score INT DEFAULT 0,
+                                     is_accepted BOOLEAN DEFAULT FALSE,
+                                     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+                                     status INT DEFAULT 1,
+                                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                                     FOREIGN KEY (submission_id) REFERENCES submissions(submission_id),
+                                     FOREIGN KEY (contest_id) REFERENCES contests(contest_id),
+                                     FOREIGN KEY (user_id) REFERENCES users(user_id),
+                                     FOREIGN KEY (problem_id) REFERENCES problems(problem_id)
+);
+
+CREATE TABLE contest_rankings (
+                                  ranking_id INT PRIMARY KEY AUTO_INCREMENT,
+                                  contest_id INT NOT NULL,
+                                  user_id VARCHAR(36) NOT NULL,
+                                  total_score INT DEFAULT 0,
+                                  total_time_seconds INT DEFAULT 0,
+                                  last_submission_at DATETIME,
+                                  rank INT DEFAULT NULL,
+                                  FOREIGN KEY (contest_id) REFERENCES contests(contest_id),
+                                  FOREIGN KEY (user_id) REFERENCES users(user_id),
+                                  UNIQUE (contest_id, user_id)
+);
+
 
 
 
