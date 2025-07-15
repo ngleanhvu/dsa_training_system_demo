@@ -8,32 +8,25 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "problem_details")@Getter
+@Table(name = "contest_participants", uniqueConstraints = @UniqueConstraint(columnNames = {"contest_id", "user_id"}))
+@Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProblemDetail {
+public class ContestParticipant {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer problemDetailId;
+    private Integer id;
 
-    @Lob
-    private String description;
+    @ManyToOne
+    @JoinColumn(name = "contest_id", nullable = false)
+    private Contest contest;
 
-    @Column(columnDefinition = "json")
-    private String constraints;
-
-    @Column(columnDefinition = "json")
-    private String hints;
-
-    private Integer timeLimit = 1000;
-
-    private Integer memoryLimit = 256;
-
-    @OneToOne
-    @JoinColumn(name = "problem_id", unique = true, nullable = false)
-    private Problem problem;
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     private Integer status = 1;
 

@@ -4,18 +4,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.*;
-import com.ngleanhvu.dsa_training_system.dto.response.ListSubmissionResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.OverallResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.SubmissionResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.*;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
+import com.ngleanhvu.dsa_training_system.repo.spec.SubmissionSpecification;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,7 +25,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -285,6 +285,61 @@ public class SubmissionServiceImpl implements SubmissionService {
         } catch (Exception e) {
             log.error("Kafka message xử lý thất bại: {}", json, e);
         }
+    }
+
+    @Override
+    public List<BasicResultSubmissionResponse> getBasicSubmissionResponses(String userId, int problemId) {
+        List<Submission> submissions = submissionRepo.getSubmissionByUserIdAndProblemId(userId, problemId);
+
+        if (submissions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<BasicResultSubmissionResponse> responses = submissions.stream()
+                .map(s -> BasicResultSubmissionResponse.builder()
+                        .submissionId(s.getSubmissionId())
+                        .time(s.getRuntimeMs())
+                        .timestamp(s.getCreatedAt())
+                        .programmingLanguage(s.getProgrammingLanguage())
+                        .message(s.getErrorMessage())
+                        .status(s.getSubmissionStatus())
+                        .submissionId(s.getSubmissionId())
+                        .build())
+                .toList();
+
+        log.info("responses: {}", responses);
+
+        return responses;
+    }
+
+    @Override
+    public List<BasicResultSubmissionResponse> getBasicSubmissionResponses(SubmissionFilterRequest filterRequest, PagingSearch pagingSearch) {
+        Specification<Submission> specification = SubmissionSpecification.hasProblemId(filterRequest.getProblemId())
+                .and(SubmissionSpecification.hasSubmissionStatus(filterRequest.getStatus()))
+                .and(SubmissionSpecification.hasTimeRange(filterRequest.getTimeRange()))
+                .and(SubmissionSpecification.hasProgrammingLanguage(filterRequest.getProgrammingLanguageId()));
+
+        Page<Submission> submissions = submissionRepo.findAll(specification, pagingSearch.toPageable());
+
+        if (submissions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.getContent().stream()
+                .map(s -> BasicResultSubmissionResponse.builder()
+                        .submissionId(s.getSubmissionId())
+                        .time(s.getRuntimeMs())
+                        .memory(s.getMemoryKb())
+                        .timestamp(s.getCreatedAt())
+                        .programmingLanguage(s.getProgrammingLanguage())
+                        .message(s.getErrorMessage())
+                        .status(s.getSubmissionStatus())
+                        .build())
+                .toList();
+
+        log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);
+
+        return basicResultSubmissionResponses;
     }
 
 

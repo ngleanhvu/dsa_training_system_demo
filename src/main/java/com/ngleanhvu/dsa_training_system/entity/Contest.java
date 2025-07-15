@@ -8,32 +8,34 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "problem_details")@Getter
+@Table(name = "contests")
+@Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProblemDetail {
+public class Contest {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer problemDetailId;
+    private Integer contestId;
+
+    private String title;
+
+    private String slug;
 
     @Lob
     private String description;
 
-    @Column(columnDefinition = "json")
-    private String constraints;
+    private LocalDateTime startTime;
 
-    @Column(columnDefinition = "json")
-    private String hints;
+    private Integer durationMinutes = 90;
 
-    private Integer timeLimit = 1000;
+    private Boolean isRated = true;
 
-    private Integer memoryLimit = 256;
-
-    @OneToOne
-    @JoinColumn(name = "problem_id", unique = true, nullable = false)
-    private Problem problem;
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "ENUM('upcoming','ongoing','finished') DEFAULT 'upcoming'")
+    private ContestStatus contestStatus = ContestStatus.UPCOMING;
 
     private Integer status = 1;
 

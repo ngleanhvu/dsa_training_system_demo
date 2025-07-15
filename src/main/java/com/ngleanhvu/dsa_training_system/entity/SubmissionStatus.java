@@ -21,6 +21,15 @@ public enum SubmissionStatus {
         this.value = value;
     }
 
+    public static SubmissionStatus getSubmissionStatus(String value) {
+        for (SubmissionStatus submissionStatus : SubmissionStatus.values()) {
+            if (submissionStatus.value.equalsIgnoreCase(value)) {
+                return submissionStatus;
+            }
+        }
+        return null;
+    }
+
 }
 
 
