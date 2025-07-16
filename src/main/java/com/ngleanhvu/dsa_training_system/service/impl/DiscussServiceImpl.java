@@ -1,17 +1,20 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
+import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
@@ -62,9 +65,12 @@ public class DiscussServiceImpl implements DiscussService {
     }
 
     @Override
-    public List<DiscussResponse> getDiscusses(String keyword, PagingSearch pagingSearch) {
-        log.info("keyword: {}", keyword);
-        Page<Discuss> discusses = discussRepo.findDiscusses(keyword, pagingSearch.toPageable());
+    public List<DiscussResponse> getDiscusses(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
+        Specification<Discuss> specification = DiscussSpecification.hasKeyword(discussFilterRequest.getKeyword())
+                        .and(DiscussSpecification.hasTag(discussFilterRequest.getTagIds())
+                        .and(DiscussSpecification.hasTimestamp(discussFilterRequest.getTimestamp())));
+        Page<Discuss> discussPage = discussRepo.findAll(specification, pagingSearch.toPageable());
+        List<Discuss> discusses = discussPage.getContent();
         log.info("discusses: {}", discusses);
         List<DiscussResponse> discussResponses = discusses.stream()
                 .map(d -> DiscussResponse.builder()

@@ -14,4 +14,5 @@ public class ProblemCreateRequest {
     private List<String> hints;
     private int timeLimit;
     private int memoryLimit;
+    private boolean isPublic;
 }

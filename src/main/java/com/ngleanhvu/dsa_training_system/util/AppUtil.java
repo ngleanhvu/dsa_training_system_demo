@@ -31,10 +31,10 @@ public class AppUtil {
 
     public static String sanitize(String inputHtml) {
         Safelist safelist = Safelist.relaxed()
-                .addTags("table", "thead", "tbody", "tfoot", "tr", "td", "th") // bảng
-                .addAttributes("img", "src", "alt", "title", "width", "height") // ảnh
-                .addAttributes("a", "href", "title") // link
-                .addProtocols("img", "src", "http", "https", "data") // cho phép ảnh data:image/*
+                .addTags("table", "thead", "tbody", "tfoot", "tr", "td", "th")
+                .addAttributes("img", "src", "alt", "title", "width", "height")
+                .addAttributes("a", "href", "title")
+                .addProtocols("img", "src", "http", "https", "data")
                 .addProtocols("a", "href", "http", "https", "mailto");
         return Jsoup.clean(inputHtml, safelist);
     }

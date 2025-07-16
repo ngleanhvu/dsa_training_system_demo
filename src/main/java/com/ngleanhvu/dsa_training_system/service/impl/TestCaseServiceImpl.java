@@ -78,6 +78,7 @@ public class TestCaseServiceImpl implements TestCaseService {
         return testCaseResponses;
     }
 
+    @Transactional
     @Override
     public void updateTestCase(Integer testCaseId, TestCaseUpdateRequest request) {
         TestCase existingTestCase = testCaseRepo.findById(testCaseId)
@@ -89,12 +90,14 @@ public class TestCaseServiceImpl implements TestCaseService {
         testCaseRepo.save(existingTestCase);
     }
 
+    @Transactional
     @Override
     public void deleteAllTestCaseByProblemId(int problemId) {
         List<TestCase> testCases = testCaseRepo.findAllByProblemId(problemId);
         testCaseRepo.deleteAll(testCases);
     }
 
+    @Transactional
     @Override
     public void deleteTestCaseById(int testCaseId) {
         testCaseRepo.deleteById(testCaseId);

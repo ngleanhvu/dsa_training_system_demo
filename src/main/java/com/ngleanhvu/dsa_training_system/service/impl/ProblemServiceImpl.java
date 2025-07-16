@@ -24,6 +24,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,6 +61,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .title(request.getTitle())
                 .difficulty(difficulty)
                 .status(1)
+                .isPublic(request.isPublic())
                 .build();
 
         problemRepo.save(problem);
@@ -241,6 +243,21 @@ public class ProblemServiceImpl implements ProblemService {
         return response;
     }
 
+    @Transactional
+    @Override
+    public void togglePublishProblem(Integer problemId) {
+        Problem problem = problemRepo.findById(problemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
+
+        if (!problem.isPublic()) {
+            problem.setPublic(true);
+            problem.setPublishedAt(LocalDateTime.now());
+        } else {
+            problem.setPublic(false);
+        }
+
+        problemRepo.save(problem);
+    }
 
     private String getSlugPrefix() {
         return String.format("http://%s:%s/api/v1/problems/", serverAddress, serverPort);

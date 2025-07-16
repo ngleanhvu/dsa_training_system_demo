@@ -61,5 +61,7 @@ public class Submission {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    private LocalDateTime submitAt;
 }
 

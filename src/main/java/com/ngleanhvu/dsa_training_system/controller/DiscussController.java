@@ -1,6 +1,7 @@
 package com.ngleanhvu.dsa_training_system.controller;
 
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
@@ -28,7 +29,7 @@ public class DiscussController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getDiscusses (@RequestParam(required = false, defaultValue = "") String keyword,
+    public ResponseEntity<?> getDiscusses (@RequestBody DiscussFilterRequest discussFilterRequest,
                                            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
                                            @RequestParam(required = false, defaultValue = "1") int page,
                                            @RequestParam(required = false, defaultValue = "10") int size,
@@ -39,7 +40,7 @@ public class DiscussController {
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDir);
 
-        var response = discussService.getDiscusses(keyword, pagingSearch);
+        var response = discussService.getDiscusses(discussFilterRequest, pagingSearch);
 
         var apiResponse = ApiResponse.builder()
                 .message("Get discusses success")

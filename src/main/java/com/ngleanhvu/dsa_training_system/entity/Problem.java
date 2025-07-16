@@ -37,6 +37,10 @@ public class Problem {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    private LocalDateTime publishedAt;
+
+    private boolean isPublic;
+
     @OneToMany(mappedBy = "problem", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private Set<ProblemTopic> problemTopics;
 }

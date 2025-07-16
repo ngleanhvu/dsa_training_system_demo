@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(name = "discuss")
@@ -39,5 +40,10 @@ public class Discuss {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "discuss")
+    private Set<DiscussTag> discussTags;
+
+    @OneToOne(mappedBy = "discuss")
+    private Solution solution;
 }
 
