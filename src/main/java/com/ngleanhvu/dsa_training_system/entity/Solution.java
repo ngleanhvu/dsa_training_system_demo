@@ -19,7 +19,7 @@ public class Solution {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer solutionId;
 
-    @OneToOne(cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    @OneToOne(cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
     @JoinColumn(name = "discuss_id", nullable = false)
     private Discuss discuss;
 

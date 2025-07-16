@@ -2,15 +2,18 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
-import com.ngleanhvu.dsa_training_system.dto.response.SolutionResponse;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
+import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.SolutionService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,7 +75,29 @@ public class SolutionServiceImpl implements SolutionService {
     }
 
     @Override
-    public List<SolutionResponse> getSolutions(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
+    public List<DiscussResponse> getSolutions(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
+        Specification<Discuss> spec = DiscussSpecification.hasKeyword(discussFilterRequest.getKeyword())
+                .and(DiscussSpecification.hasTag(discussFilterRequest.getTagIds()))
+                .and(DiscussSpecification.hasProblem(discussFilterRequest.getProblemId()))
+                .and(DiscussSpecification.hasTimestamp(discussFilterRequest.getTimestamp()));
 
+        Page<Discuss> discussPage = discussRepo.findAll(spec, pagingSearch.toPageable());
+
+        List<DiscussResponse> solutionResponses = discussPage.getContent().stream()
+                .map(s -> DiscussResponse.builder()
+                        .title(s.getTitle())
+                        .content(s.getContent())
+                        .createdAt(s.getCreatedAt())
+                        .upVotes(s.getUpVotes())
+                        .views(s.getViews())
+                        .userAvatar(s.getUser().getAvatar())
+                        .userEmail(s.getUser().getEmail())
+                        .userDisplayName(s.getUser().getDisplayName())
+                        .build())
+                .toList();
+
+        log.debug("solutionResponses: {}", solutionResponses);
+
+        return solutionResponses;
     }
 }
