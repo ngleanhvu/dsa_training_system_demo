@@ -25,10 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -166,19 +163,40 @@ public class ProblemServiceImpl implements ProblemService {
         }
 
         if (problemUpdateRequest.getTopicIds() != null) {
-            List<Topic> topics = topicRepo.findAllById(problemUpdateRequest.getTopicIds());
+            List<Topic> newTopics = topicRepo.findAllById(problemUpdateRequest.getTopicIds());
+            List<ProblemTopic> currentProblemTopics = problemTopicRepo.findByProblemId(problemId);
 
-            List<ProblemTopic> problemTopics = problemTopicRepo.findByProblemId(problemId);
-            problemTopicRepo.deleteAll(problemTopics);
+            Set<Integer> currentTopicIds = currentProblemTopics.stream()
+                    .map(pt -> pt.getTopic().getTopicId())
+                    .collect(Collectors.toSet());
 
-            if (!topics.isEmpty()) {
-                List<ProblemTopic> newProblemTopics = topics.stream()
+            Set<Integer> newTopicIds = newTopics.stream()
+                    .map(Topic::getTopicId)
+                    .collect(Collectors.toSet());
+
+            Set<Integer> toRemove = new HashSet<>(currentTopicIds);
+            toRemove.removeAll(newTopicIds);
+
+            if (!toRemove.isEmpty()) {
+                problemTopicRepo.deleteByProblemIdAndTopicIds(problemId, toRemove);
+            }
+
+            Set<Integer> toAdd = new HashSet<>(newTopicIds);
+            toAdd.removeAll(currentTopicIds);
+
+            if (!toAdd.isEmpty()) {
+                List<Topic> topicsToAdd = newTopics.stream()
+                        .filter(t -> toAdd.contains(t.getTopicId()))
+                        .toList();
+
+                List<ProblemTopic> newProblemTopics = topicsToAdd.stream()
                         .map(topic -> ProblemTopic.builder()
-                                .status(1)
                                 .problem(existingProblem)
                                 .topic(topic)
+                                .status(1)
                                 .build())
                         .toList();
+
                 problemTopicRepo.saveAll(newProblemTopics);
             }
         }

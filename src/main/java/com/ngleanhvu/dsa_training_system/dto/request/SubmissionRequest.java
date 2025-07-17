@@ -8,4 +8,5 @@ public class SubmissionRequest {
     private String sourceCode;
     private Integer languageId;
     private String stdin;
+    private Integer contestId;
 }

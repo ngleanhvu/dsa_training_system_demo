@@ -44,6 +44,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final SubmissionRepo submissionRepo;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final ContestProblemRepo contestProblemRepo;
 
     @Value("${piston.load_balancer}")
     private String loadBalancer;
@@ -194,6 +195,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         SubmissionCreateRequest submissionCreateRequest = SubmissionCreateRequest.builder()
                 .submissionTestCaseCreateRequests(submissionTestCaseCreateRequests)
                 .pass(overallResponse.getPass())
+                .contestId(submissionRequest.getContestId())
                 .total(overallResponse.getTotal())
                 .programmingLanguageId(programmingLanguage.getProgrammingLanguageId())
                 .problemId(problemDetail.getProblem().getProblemId())
@@ -274,6 +276,24 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .acceptRate(acceptRate)
                     .problemId(problem.getProblemId())
                     .build();
+
+            if (submissionCreateRequest.getContestId() != null) {
+
+                ContestProblem contestProblem = contestProblemRepo.findByProblemId(problem.getProblemId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(submissionCreateRequest.getProblemId())));
+
+                ContestSubmissionCreateRequest contestSubmissionCreateRequest = ContestSubmissionCreateRequest.builder()
+                        .submissionId(submission.getSubmissionId())
+                        .contestId(submissionCreateRequest.getContestId())
+                        .score(submissionCreateRequest.getTotal() == submissionCreateRequest.getPass() ? contestProblem.getScore() : 0)
+                        .build();
+
+                log.info("contestSubmissionCreateRequest: {}", contestSubmissionCreateRequest);
+
+                String contestSubmissionJson = objectMapper.writeValueAsString(contestSubmissionCreateRequest);
+                kafkaTemplate.send(KafkaConst.CONTEST_SUBMISSION_CREATE_TOPIC, contestSubmissionJson);
+
+            }
 
             log.info("problemDocumentUpdateAcceptRateRequest: {}", problemDocumentUpdateAcceptRateRequest);
 

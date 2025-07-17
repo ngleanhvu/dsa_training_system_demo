@@ -28,14 +28,6 @@ public class ContestSubmission {
     @JoinColumn(name = "contest_id", nullable = false)
     private Contest contest;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @ManyToOne
-    @JoinColumn(name = "problem_id", nullable = false)
-    private Problem problem;
-
     private Integer score = 0;
 
     private Boolean isAccepted = false;

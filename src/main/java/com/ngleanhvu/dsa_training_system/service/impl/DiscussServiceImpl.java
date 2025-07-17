@@ -17,9 +17,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -124,32 +124,54 @@ public class DiscussServiceImpl implements DiscussService {
     @Override
     public void updateDiscuss(Integer discussId, DiscussUpdateRequest request) {
         Discuss discuss = discussRepo.findById(discussId)
-                .orElseThrow(() -> new ResourceNotFoundException("Discuss","id", String.valueOf(discussId)));
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
 
+        // Cập nhật title & content
         discuss.setTitle(request.getTitle());
         discuss.setContent(request.getContent());
 
-        List<Tag> tags = tagRepo.findAllById(request.getTagIds());
+        // Cập nhật tags nếu có
+        if (request.getTagIds() != null) {
+            List<Tag> newTags = tagRepo.findAllById(request.getTagIds());
+            List<DiscussTag> currentDiscussTags = discussTagRepo.findByDiscussId(discussId);
 
-        List<DiscussTag> discussTags = discussTagRepo.findByDiscussId(discussId);
-        if (!discussTags.isEmpty())
-            discussTagRepo.deleteAll(discussTags);
+            Set<Integer> currentTagIds = currentDiscussTags.stream()
+                    .map(dt -> dt.getTag().getTagId())
+                    .collect(Collectors.toSet());
 
-        if (!tags.isEmpty()){
-            discussTags = new ArrayList<>();
+            Set<Integer> newTagIds = newTags.stream()
+                    .map(Tag::getTagId)
+                    .collect(Collectors.toSet());
 
+            Set<Integer> toRemove = new HashSet<>(currentTagIds);
+            toRemove.removeAll(newTagIds);
 
-            for (Tag tag : tags) {
-                DiscussTag discussTag = new DiscussTag();
-                discussTag.setDiscuss(discuss);
-                discussTag.setTag(tag);
-                discussTag.setStatus(1);
-                discussTags.add(discussTag);
+            if (!toRemove.isEmpty()) {
+                discussTagRepo.deleteByDiscussIdAndTagIds(discussId, toRemove);
             }
 
-            discussTagRepo.saveAll(discussTags);
+            Set<Integer> toAdd = new HashSet<>(newTagIds);
+            toAdd.removeAll(currentTagIds);
+
+            if (!toAdd.isEmpty()) {
+                List<Tag> tagsToAdd = newTags.stream()
+                        .filter(tag -> toAdd.contains(tag.getTagId()))
+                        .toList();
+
+                List<DiscussTag> newDiscussTags = tagsToAdd.stream()
+                        .map(tag -> DiscussTag.builder()
+                                .discuss(discuss)
+                                .tag(tag)
+                                .status(1)
+                                .build())
+                        .toList();
+
+                discussTagRepo.saveAll(newDiscussTags);
+            }
         }
+
         discussRepo.save(discuss);
     }
+
 
 }

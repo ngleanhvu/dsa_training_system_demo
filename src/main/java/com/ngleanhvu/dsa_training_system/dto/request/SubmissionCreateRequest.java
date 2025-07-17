@@ -22,4 +22,5 @@ public class SubmissionCreateRequest {
     private LocalDateTime submitTime;
     private String status;
     private List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests;
+    private Integer contestId;
 }
