@@ -29,6 +29,8 @@ public class Contest {
 
     private LocalDateTime startTime;
 
+    private LocalDateTime endTime;
+
     private Integer durationMinutes = 90;
 
     private Boolean isRated = true;

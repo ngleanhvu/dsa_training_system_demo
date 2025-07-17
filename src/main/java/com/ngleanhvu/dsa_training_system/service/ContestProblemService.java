@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface ContestProblemService {
     void createContestProblem(int contestId, List<ContestProblemRequest> requests);
+
 }
