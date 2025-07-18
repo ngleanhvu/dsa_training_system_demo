@@ -27,6 +27,9 @@ public class AuthLocal {
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
 
+
+    private boolean isVerify = false;
+
     private int status = 1;
 
     @Column(name = "created_at", updatable = false)

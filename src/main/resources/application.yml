@@ -13,6 +13,18 @@ spring:
       resourceserver:
         jwt:
           public-key-location: classpath:keys/public-key.pem
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_ADDRESS}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -53,7 +65,6 @@ jwt:
 server:
   port: 8000
   address: localhost
-
 
 
 

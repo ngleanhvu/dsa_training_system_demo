@@ -68,6 +68,7 @@ public class CommentController {
         pagingSearch.setDirection(sortDir);
 
         var response = commentService.getCommentsByDiscuss(discussId, pagingSearch);
+
         log.info("response: {}", response);
 
         var apiResponse = ApiResponse.builder()

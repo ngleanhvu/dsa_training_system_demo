@@ -8,4 +8,8 @@ public class RedisKey {
     public static String generateRefreshKey(String authId, String jti)  {
         return "refresh:" + authId + ":jti:" + jti;
     }
+
+    public static String generateEmailConfirmKey(String token) {
+        return "email_confirm:" + token;
+    }
 }

@@ -1,8 +1,12 @@
 package com.ngleanhvu.dsa_training_system.repo.spec;
 
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
+import com.ngleanhvu.dsa_training_system.entity.Difficulty;
+import com.ngleanhvu.dsa_training_system.entity.Problem;
 import com.ngleanhvu.dsa_training_system.entity.Submission;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -57,4 +61,21 @@ public class SubmissionSpecification {
             return cb.equal(root.get("programmingLanguage").get("programmingLanguageId"), programmingLanguageId);
         };
     }
+
+    public static Specification<Submission> statisticByProgrammingLanguageAndUserId(String userId) {
+        return (root, query, cb) -> {
+            query.multiselect(
+                    root.get("programmingLanguage").get("name"),
+                    cb.count(root)
+            );
+
+            query.groupBy(root.get("programmingLanguage").get("name"));
+
+            Predicate byUser = cb.equal(root.get("user").get("userId"), userId);
+            Predicate isAccepted = cb.equal(root.get("submissionStatus"), SubmissionStatus.ACCEPTED);
+
+            return cb.and(byUser, isAccepted);
+        };
+    }
+
 }

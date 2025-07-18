@@ -1,0 +1,1 @@
+alter table auth_local add column is_verify boolean;
