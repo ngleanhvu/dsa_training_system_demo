@@ -2,20 +2,20 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.AuthRecord;
 import com.ngleanhvu.dsa_training_system.dto.request.EmailRecord;
 import com.ngleanhvu.dsa_training_system.dto.request.LoginRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
-import com.ngleanhvu.dsa_training_system.entity.AuthLocal;
-import com.ngleanhvu.dsa_training_system.entity.User;
-import com.ngleanhvu.dsa_training_system.entity.UserRole;
+import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.redis.EmailConfirmTokenService;
 import com.ngleanhvu.dsa_training_system.redis.RedisKey;
 import com.ngleanhvu.dsa_training_system.repo.AuthLocalRepo;
+import com.ngleanhvu.dsa_training_system.repo.OAuthRepo;
 import com.ngleanhvu.dsa_training_system.repo.UserRepo;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.AuthService;
@@ -54,6 +54,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailConfirmTokenService emailConfirmTokenService;
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
+    private final OAuthRepo oAuthRepo;
 
     @Value("${jwt.expiration.refresh_token}")
     private long refreshTokenExpiration;
@@ -76,23 +77,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findById(authLocal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User","id",authLocal.getUserId()));
 
-        AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());
-
-        String accessToken = jwtUtil.generateAccessToken(authRecord);
-        String refreshToken = jwtUtil.generateRefreshToken(authRecord);
-
-        String jti = jwtUtil.getJti(refreshToken)
-                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
-
-        Date expiration = jwtUtil.getExpiration(refreshToken)
-                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
-
-        stringRedisTemplate.opsForValue().set(RedisKey.generateRefreshKey(authRecord.userid(), jti), String.valueOf(expiration.getTime()), refreshTokenExpiration, TimeUnit.SECONDS);
-
-        return LoginResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
+        return generateLoginResponse(user);
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
@@ -112,9 +97,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String avatarUrl = s3Service.upload(avatar);
-
-        String displayName = email.contains("@") ? email.substring(0, email.indexOf("@")) : email;
-
+        String displayName = email.substring(0, email.indexOf("@"));
         String userId = UUID.randomUUID().toString();
 
         User user = User.builder()
@@ -134,41 +117,32 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         user.setAuthLocal(authLocal);
-
         userRepo.save(user);
 
         String token = UUID.randomUUID().toString();
         emailConfirmTokenService.saveToken(token, userId, Duration.ofMinutes(15));
 
-        EmailRecord emailRecord = getEmailRecord(token, email);
-
-        String json = objectMapper.writeValueAsString(emailRecord);
-
+        String json = objectMapper.writeValueAsString(getEmailRecord(token, email));
         kafkaTemplate.send(KafkaConst.AUTH_CREATE_TOPIC, email, json);
     }
 
     private EmailRecord getEmailRecord(String token, String email) {
         String confirmationLink = String.format("http://%s:%s/api/v1/auths/confirm?token=%s", serverAddress, serverPort, token);
-
         String subject = "Confirm your account registration";
         String body = String.format("""
-                    Hello,
-                
-                    Thank you for registering! Please confirm your email by clicking the link below:
-                
-                    %s
-                
-                    This link will expire in 15 minutes.
-                
-                    Best regards,
-                    YourApp Team
-                    """, confirmationLink);
+                Hello,
 
-        EmailRecord emailRecord = new EmailRecord(email, subject, body);
+                Thank you for registering! Please confirm your email by clicking the link below:
 
-        log.info("Email record: {}", emailRecord);
+                %s
 
-        return emailRecord;
+                This link will expire in 15 minutes.
+
+                Best regards,
+                YourApp Team
+                """, confirmationLink);
+
+        return new EmailRecord(email, subject, body);
     }
 
     @Override
@@ -176,9 +150,7 @@ public class AuthServiceImpl implements AuthService {
         String jti = jwtUtil.getJti(refreshToken)
                 .orElseThrow(() -> new InvalidValueException("Invalid refresh token"));
 
-        String blackListKey = RedisKey.generateBlackListKey(jti);
-
-        if (stringRedisTemplate.hasKey(blackListKey)) {
+        if (stringRedisTemplate.hasKey(RedisKey.generateBlackListKey(jti))) {
             throw new InvalidValueException("Refresh revoked");
         }
 
@@ -188,13 +160,7 @@ public class AuthServiceImpl implements AuthService {
         AuthLocal authLocal = authLocalRepo.findById(authId)
                 .orElseThrow(() -> new ResourceNotFoundException("Auth local","email",authId));
 
-        User user = authLocal.getUser();
-
-        AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());
-
-        return LoginResponse.builder()
-                .accessToken(jwtUtil.generateAccessToken(authRecord))
-                .build();
+        return generateLoginResponse(authLocal.getUser());
     }
 
     @Override
@@ -208,14 +174,69 @@ public class AuthServiceImpl implements AuthService {
         Date expiration = jwtUtil.getExpiration(refreshToken)
                 .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
 
-        long ttl = expiration.getTime() - System.currentTimeMillis() > 0 ? expiration.getTime() : 0;
+        long ttl = Math.max(0, expiration.getTime() - System.currentTimeMillis());
 
         String key = RedisKey.generateRefreshKey(authId, jti);
-
         if (stringRedisTemplate.hasKey(key)) {
             stringRedisTemplate.delete(key);
-            stringRedisTemplate.opsForValue().set(RedisKey.generateBlackListKey(jti), String.valueOf(1), ttl, TimeUnit.SECONDS);
+            stringRedisTemplate.opsForValue().set(RedisKey.generateBlackListKey(jti), "1", ttl, TimeUnit.MILLISECONDS);
         }
+    }
+
+    @Override
+    public LoginResponse loginWithGoogle(GoogleIdToken.Payload payload) {
+        String email = payload.getEmail();
+        User user = userRepo.findByEmail(email).orElseGet(() -> {
+            String displayName = email.substring(0, email.indexOf("@"));
+            String avatarUrl = (String) payload.get("picture");
+            String userId = UUID.randomUUID().toString();
+
+            User newUser = User.builder()
+                    .status(1)
+                    .email(email)
+                    .role(UserRole.USER)
+                    .avatar(avatarUrl)
+                    .displayName(displayName)
+                    .userId(userId)
+                    .build();
+
+            return userRepo.save(newUser);
+        });
+
+        oAuthRepo.findByEmailAndOAuth2Provider(email, OAuth2Provider.GOOGLE)
+                .orElseGet(() -> oAuthRepo.save(AuthOAuth2.builder()
+                        .user(user)
+                        .email(email)
+                        .provider(OAuth2Provider.GOOGLE)
+                        .providerUserId(payload.getSubject())
+                        .status(1)
+                        .build()));
+
+        return generateLoginResponse(user);
+    }
+
+    private LoginResponse generateLoginResponse(User user) {
+        AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());
+        String accessToken = jwtUtil.generateAccessToken(authRecord);
+        String refreshToken = jwtUtil.generateRefreshToken(authRecord);
+
+        String jti = jwtUtil.getJti(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        Date expiration = jwtUtil.getExpiration(refreshToken)
+                .orElseThrow(() -> new InvalidValueException("Refresh token does not exist"));
+
+        stringRedisTemplate.opsForValue().set(
+                RedisKey.generateRefreshKey(authRecord.userid(), jti),
+                String.valueOf(expiration.getTime()),
+                refreshTokenExpiration,
+                TimeUnit.SECONDS
+        );
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     @KafkaListener(topics = KafkaConst.AUTH_CREATE_TOPIC, groupId = KafkaConst.GROUP_ID)
@@ -223,7 +244,4 @@ public class AuthServiceImpl implements AuthService {
         EmailRecord emailRecord = objectMapper.readValue(json, EmailRecord.class);
         emailService.sendEmail(emailRecord.to(), emailRecord.subject(), emailRecord.body());
     }
-
-
-
 }

@@ -3,8 +3,6 @@ package com.ngleanhvu.dsa_training_system.entity;
 import com.ngleanhvu.dsa_training_system.converter.OAuth2ProviderConverter;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.jpa.convert.threeten.Jsr310JpaConverters;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,6 +10,7 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames = {"provider", "provider_user_id"})
 })
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthOAuth2 {

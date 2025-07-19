@@ -26,6 +26,14 @@ spring:
             enable: true
 
 
+github:
+  client_id: Ov23li0lgHoq3nu5EIX0
+  client_secret: 73a0f5f1099d5392988d36bb67a2523d638ee7c7
+
+google:
+  client_id: 250553713111-c3asc7bjbo4qmggcsc5j66tq3b0o4cta.apps.googleusercontent.com
+
+
   kafka:
     bootstrap-servers: localhost:9092
     consumer:

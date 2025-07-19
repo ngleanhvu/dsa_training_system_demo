@@ -1,10 +1,10 @@
 package com.ngleanhvu.dsa_training_system.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.ngleanhvu.dsa_training_system.dto.request.LoginRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
 import org.apache.http.auth.InvalidCredentialsException;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.io.IOException;
 
@@ -13,4 +13,5 @@ public interface AuthService {
     void register(RegisterRequest registerRequest) throws IOException;
     LoginResponse refresh(String refreshToken);
     void logout(String refreshToken);
+    LoginResponse loginWithGoogle(GoogleIdToken.Payload payload);
 }
