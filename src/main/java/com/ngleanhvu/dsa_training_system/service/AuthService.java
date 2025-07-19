@@ -14,4 +14,5 @@ public interface AuthService {
     LoginResponse refresh(String refreshToken);
     void logout(String refreshToken);
     LoginResponse loginWithGoogle(GoogleIdToken.Payload payload);
+    LoginResponse loginWithGithub(String accessToken);
 }

@@ -26,16 +26,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.InvalidCredentialsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.*;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -55,6 +59,7 @@ public class AuthServiceImpl implements AuthService {
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
     private final OAuthRepo oAuthRepo;
+    private final RestTemplate restTemplate;
 
     @Value("${jwt.expiration.refresh_token}")
     private long refreshTokenExpiration;
@@ -215,6 +220,46 @@ public class AuthServiceImpl implements AuthService {
         return generateLoginResponse(user);
     }
 
+    @Override
+    public LoginResponse loginWithGithub(String accessToken) {
+        Map<String, Object> userInfo = getGitHubUserInfo(accessToken);
+
+        String email = (String) userInfo.get("email");
+        if (email == null || email.isBlank()) {
+            throw new InvalidValueException("Unable to retrieve email from GitHub");
+        }
+
+        String login = (String) userInfo.get("login");
+        String avatarUrl = (String) userInfo.get("avatar_url");
+
+        User user = userRepo.findByEmail(email).orElseGet(() -> {
+            String userId = UUID.randomUUID().toString();
+            String displayName = (login != null && !login.isBlank()) ? login : email.substring(0, email.indexOf("@"));
+
+            User newUser = User.builder()
+                    .status(1)
+                    .email(email)
+                    .role(UserRole.USER)
+                    .avatar(avatarUrl)
+                    .displayName(displayName)
+                    .userId(userId)
+                    .build();
+
+            return userRepo.save(newUser);
+        });
+
+        oAuthRepo.findByEmailAndOAuth2Provider(email, OAuth2Provider.GITHUB)
+                .orElseGet(() -> oAuthRepo.save(AuthOAuth2.builder()
+                        .user(user)
+                        .email(email)
+                        .provider(OAuth2Provider.GITHUB)
+                        .providerUserId(String.valueOf(userInfo.get("id")))
+                        .status(1)
+                        .build()));
+
+        return generateLoginResponse(user);
+    }
+
     private LoginResponse generateLoginResponse(User user) {
         AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());
         String accessToken = jwtUtil.generateAccessToken(authRecord);
@@ -243,5 +288,19 @@ public class AuthServiceImpl implements AuthService {
     public void sendEmailForRegister(String json) throws JsonProcessingException {
         EmailRecord emailRecord = objectMapper.readValue(json, EmailRecord.class);
         emailService.sendEmail(emailRecord.to(), emailRecord.subject(), emailRecord.body());
+    }
+
+
+    private Map<String, Object> getGitHubUserInfo(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://api.github.com/user", HttpMethod.GET, entity, Map.class);
+
+        return response.getBody();
     }
 }

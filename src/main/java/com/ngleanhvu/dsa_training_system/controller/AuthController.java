@@ -16,9 +16,11 @@ import org.apache.http.auth.InvalidCredentialsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -28,9 +30,16 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final RestTemplate restTemplate;
 
     @Value("${google.client_id}")
     private String googleClientId;
+
+    @Value("${github.client_id}")
+    private String githubClientId;
+
+    @Value("${github.client_secret}")
+    private String githubClientSecret;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws InvalidCredentialsException {
@@ -77,7 +86,6 @@ public class AuthController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-    @CrossOrigin
     @PostMapping("/google/login")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
         String idToken = body.get("idToken");
@@ -96,6 +104,47 @@ public class AuthController {
                 .build();
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
+
+    @PostMapping("/github/login")
+    public ResponseEntity<?> githubLogin(@RequestBody Map<String, String> body) {
+        String code = body.get("code");
+
+        String accessToken = getAccessToken(code);
+        if (accessToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid access token");
+        }
+
+        LoginResponse loginResponse = authService.loginWithGithub(accessToken);
+
+        var apiResponse = ApiResponse.builder()
+                .message("Login success")
+                .status(HttpStatus.OK.name())
+                .metadata(loginResponse);
+
+        log.debug("apiResponse: {}", apiResponse);
+
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    private String getAccessToken(String code) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        Map<String, String> params = Map.of(
+                "client_id", githubClientId,
+                "client_secret", githubClientSecret,
+                "code", code
+        );
+
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(params, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://github.com/login/oauth/access_token", request, Map.class);
+
+        return response.getBody() != null ? (String) response.getBody().get("access_token") : null;
+    }
+
 
     private GoogleIdToken.Payload verifyGoogleToken(String idTokenString) {
         try {
