@@ -48,6 +48,8 @@ public class CommentServiceImpl implements CommentService {
         Comment comment = Comment.builder()
                 .discuss(discuss)
                 .status(1)
+                .commentCount(0)
+                .upVotes(0)
                 .content(commentRequest.getContent())
                 .user(user)
                 .build();
@@ -57,7 +59,7 @@ public class CommentServiceImpl implements CommentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentRequest.getParentCommentId())));
 
             comment.setParent(parentComment);
-            comment.setCommentCount(parentComment.getCommentCount() + 1);
+            parentComment.setCommentCount(parentComment.getCommentCount() + 1);
         }
 
         discuss.setCommentCount(comment.getCommentCount() + 1);
@@ -97,7 +99,7 @@ public class CommentServiceImpl implements CommentService {
         Optional<CommentVote> commentVoteOptional = commentVoteRepo.findById(commentId);
 
         if (commentVoteOptional.isPresent()) {
-            comment.setUpVotes(comment.getUpVotes() - 1);
+            comment.setUpVotes(Math.max(0, comment.getUpVotes() - 1));
             commentVoteRepo.delete(commentVoteOptional.get());
         } else {
 

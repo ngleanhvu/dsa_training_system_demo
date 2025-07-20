@@ -26,15 +26,13 @@ public class Comment {
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
-    @Column(name = "views")
-    private Integer views = 0;
-
     @Column(name = "comment_count")
     private Integer commentCount = 0;
 
     @Column(name = "up_votes")
     private Integer upVotes = 0;
 
+    @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 

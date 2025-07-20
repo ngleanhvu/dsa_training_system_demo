@@ -34,7 +34,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         log.info("problem create document request: {}", problemDocumentCreateRequest);
         ProblemDocument problemDocument = ProblemDocument.builder()
                 .id(problemDocumentCreateRequest.getProblemId())
-                .slug(problemDocumentCreateRequest.getSlug())
+                .url(problemDocumentCreateRequest.getSlug())
                 .title(problemDocumentCreateRequest.getTitle())
                 .createdAt(problemDocumentCreateRequest.getCreatedAt())
                 .acceptanceRate(problemDocumentCreateRequest.getAcceptanceRate())

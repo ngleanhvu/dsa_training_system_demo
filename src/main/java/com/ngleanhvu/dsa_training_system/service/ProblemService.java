@@ -17,5 +17,5 @@ public interface ProblemService {
     void updateProblem(Integer problemId, ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException;
     void deleteProblem(Integer problemId);
     ProblemResponse getProblem(Integer problemId);
-    void togglePublishProblem(Integer problemId);
+    void togglePublishProblem(Integer problemId) throws JsonProcessingException;
 }

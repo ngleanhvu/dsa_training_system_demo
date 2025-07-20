@@ -29,7 +29,7 @@ public class ProblemDocument {
     private String title;
 
     @Field(type = FieldType.Keyword)
-    private String slug;
+    private String url;
 
     @Field(type = FieldType.Integer)
     private Integer difficultyId;

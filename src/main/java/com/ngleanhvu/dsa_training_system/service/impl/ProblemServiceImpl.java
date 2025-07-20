@@ -57,6 +57,7 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = Problem.builder()
                 .title(request.getTitle())
                 .difficulty(difficulty)
+                .isPublic(request.isPublic())
                 .status(1)
                 .isPublic(request.isPublic())
                 .build();
@@ -92,22 +93,22 @@ public class ProblemServiceImpl implements ProblemService {
                 .status(1)
                 .build();
 
-        ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
-                        .problemId(problem.getProblemId())
-                        .title(request.getTitle())
-                        .slug(getSlugPrefix()+problem.getProblemId())
-                        .createdAt(problem.getCreatedAt().toLocalDate())
-                        .acceptanceRate(0)
-                        .difficultyId(difficulty.getDifficultyId())
-                        .difficultyName(difficulty.getName())
-                        .topicIds(topics.stream().map(Topic::getTopicId).collect(Collectors.toList()))
-                        .build();
-
-        log.info("problem create document request: {}", problemDocumentCreateRequest);
-
-        String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
-        log.info("problem create document request: {}", problemDocumentJson);
-        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
+        if (request.isPublic()) {
+            ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
+                    .problemId(problem.getProblemId())
+                    .title(request.getTitle())
+                    .url(getSlugPrefix()+problem.getProblemId())
+                    .createdAt(problem.getCreatedAt().toLocalDate())
+                    .acceptanceRate(0)
+                    .difficultyId(difficulty.getDifficultyId())
+                    .difficultyName(difficulty.getName())
+                    .topicIds(topics.stream().map(Topic::getTopicId).collect(Collectors.toList()))
+                    .build();
+            log.info("problem create document request: {}", problemDocumentCreateRequest);
+            String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
+            log.info("problem create document request: {}", problemDocumentJson);
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
+        }
 
         problemDetailRepo.save(problemDetail);
     }
@@ -263,13 +264,27 @@ public class ProblemServiceImpl implements ProblemService {
 
     @Transactional
     @Override
-    public void togglePublishProblem(Integer problemId) {
+    public void togglePublishProblem(Integer problemId) throws JsonProcessingException {
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
         if (!problem.isPublic()) {
             problem.setPublic(true);
             problem.setPublishAt(LocalDateTime.now());
+            ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
+                    .problemId(problem.getProblemId())
+                    .title(problem.getTitle())
+                    .url(getSlugPrefix()+problem.getProblemId())
+                    .createdAt(problem.getCreatedAt().toLocalDate())
+                    .acceptanceRate(0)
+                    .difficultyId(problem.getDifficulty().getDifficultyId())
+                    .difficultyName(problem.getDifficulty().getName())
+                    .topicIds(problem.getProblemTopics().stream().map(p -> p.getTopic().getTopicId()).collect(Collectors.toList()))
+                    .build();
+            log.info("problem create document request: {}", problemDocumentCreateRequest);
+            String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
+            log.info("problem create document request: {}", problemDocumentJson);
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
         } else {
             problem.setPublic(false);
         }

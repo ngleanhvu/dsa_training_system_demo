@@ -11,4 +11,5 @@ public class DiscussCreateRequest {
     private String title;
     private String content;
     private List<Integer> tagIds;
+    private boolean isPublic;
 }

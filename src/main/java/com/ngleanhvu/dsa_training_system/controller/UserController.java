@@ -18,6 +18,7 @@ public class UserController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
 
+    @PreAuthorize("hasAnyRole('USER')")
     @GetMapping("/email/{email}")
     public ResponseEntity<?> getUserByEmail(@PathVariable("email") String email) {
         UserResponse userResponse = userService.getUserByEmail(email);
@@ -29,6 +30,7 @@ public class UserController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('USER')")
     @GetMapping("/profile/{email}")
     public ResponseEntity<?> getProfile(@PathVariable("email") String email) {
 

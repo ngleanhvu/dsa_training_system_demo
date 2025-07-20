@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/contests/search**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/comments/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2

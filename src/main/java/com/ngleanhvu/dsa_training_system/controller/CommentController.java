@@ -28,7 +28,7 @@ public class CommentController {
                                            @PathVariable("discussId") Integer discussId,
                                            @RequestHeader("Authorization") String token) {
 
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
         request.setUserId(userId);
 
         commentService.createComment(request, discussId);
@@ -48,7 +48,7 @@ public class CommentController {
                                               @RequestParam(required = false, defaultValue = "desc") String sortDir) {
         PagingSearch pagingSearch = new PagingSearch();
         pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page);
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
         pagingSearch.setSize(size);
         pagingSearch.setDirection(sortDir);
 
@@ -72,7 +72,7 @@ public class CommentController {
                                         @RequestParam(required = false, defaultValue = "desc") String sortDir) {
         PagingSearch pagingSearch = new PagingSearch();
         pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page);
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
         pagingSearch.setSize(size);
         pagingSearch.setDirection(sortDir);
 
@@ -95,7 +95,7 @@ public class CommentController {
                                            @PathVariable("commentId") Integer commentId,
                                            @RequestHeader("Authorization") String token) {
 
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
         request.setUserId(userId);
 
         commentService.updateComment(commentId, request);
@@ -114,7 +114,7 @@ public class CommentController {
     public ResponseEntity<?> deleteComment(@PathVariable("commentId") Integer commentId,
                                            @RequestHeader("Authorization") String token) {
 
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
 
         commentService.deleteComment(commentId, userId);
 
@@ -132,7 +132,7 @@ public class CommentController {
     public ResponseEntity<?> toggleVote(@RequestHeader("Authorization") String token,
                                         @PathVariable("commentId") Integer commentId) {
 
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
 
         commentService.toggleVote(userId, commentId);
 

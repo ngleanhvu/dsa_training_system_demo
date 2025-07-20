@@ -7,7 +7,6 @@ public class CommentMapper {
     public static CommentResponse toDto(Comment comment) {
         return CommentResponse.builder()
                 .commentCount(comment.getCommentCount())
-                .views(comment.getViews())
                 .upVotes(comment.getUpVotes())
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())

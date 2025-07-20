@@ -8,15 +8,17 @@ import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.DiscussMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
+import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -32,9 +34,6 @@ public class DiscussServiceImpl implements DiscussService {
     private final DiscussTagRepo discussTagRepo;
     private final DiscussVoteRepo discussVoteRepo;
     private final UserRepo userRepo;
-
-    @PersistenceContext
-    private EntityManager entityManager;
 
     @Transactional
     @Override
@@ -78,55 +77,16 @@ public class DiscussServiceImpl implements DiscussService {
 
     @Override
     public List<DiscussResponse> getDiscusses(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Discuss> cq = cb.createQuery(Discuss.class);
-        Root<Discuss> root = cq.from(Discuss.class);
-        root.fetch("user", JoinType.LEFT);
-
-        List<Predicate> predicates = new ArrayList<>();
-
-        if (discussFilterRequest.getKeyword() != null && !discussFilterRequest.getKeyword().isBlank()) {
-            String likePattern = "%" + discussFilterRequest.getKeyword().toLowerCase() + "%";
-            predicates.add(cb.like((cb.lower(root.get("title"))), likePattern));
-        }
-
-        if (discussFilterRequest.getTagIds() != null && !discussFilterRequest.getTagIds().isEmpty()) {
-            Join<Discuss, DiscussTag> tagJoin = root.join("discussTags", JoinType.INNER);
-            predicates.add(tagJoin.get("tag").get("tagId").in(discussFilterRequest.getTagIds()));
-            predicates.add(cb.equal(tagJoin.get("status"), 1));
-        }
-
-        if (discussFilterRequest.getTimestamp() != null) {
-            predicates.add(
-                    cb.between(
-                            root.get("createdAt"),
-                            discussFilterRequest.getTimestamp().getFrom(),
-                            discussFilterRequest.getTimestamp().getTo()
-                    )
-            );
-        }
-
-        cq.where(cb.and(predicates.toArray(new Predicate[0])));
-        cq.orderBy(cb.desc(root.get("createdAt")));
-
-        TypedQuery<Discuss> query = entityManager.createQuery(cq);
-        query.setFirstResult(pagingSearch.getPage() * pagingSearch.getSize());
-        query.setMaxResults(pagingSearch.getSize());
-
-        List<Discuss> results = query.getResultList();
-
-        return results.stream()
-                .map(d -> DiscussResponse.builder()
-                        .title(d.getTitle())
-                        .content(d.getContent())
-                        .createdAt(d.getCreatedAt())
-                        .upVotes(d.getUpVotes())
-                        .views(d.getViews())
-                        .userAvatar(d.getUser().getAvatar())
-                        .userEmail(d.getUser().getEmail())
-                        .userDisplayName(d.getUser().getDisplayName())
-                        .build())
+        Specification<Discuss> spec = DiscussSpecification.hasKeyword(discussFilterRequest.getKeyword())
+                .and(DiscussSpecification.hasTimestamp(discussFilterRequest.getTimestamp()))
+                .and(DiscussSpecification.hasTag(discussFilterRequest.getTagIds()));
+        Page<Discuss> discussPage = discussRepo.findAll(spec, pagingSearch.toPageable());
+        log.debug("discussPage: {}", discussPage);
+        List<DiscussResponse> discussResponses = discussPage.stream()
+                .map(DiscussMapper::toDto)
                 .toList();
+        log.debug("discussResponses: {}", discussResponses);
+        return discussResponses;
     }
 
 
@@ -162,7 +122,7 @@ public class DiscussServiceImpl implements DiscussService {
 
         if (discussVoteOptional.isPresent()) {
             discussVoteRepo.delete(discussVoteOptional.get());
-            discuss.setUpVotes(discuss.getUpVotes() - 1);
+            discuss.setUpVotes(Math.max(0, discuss.getUpVotes() - 1));
         } else {
             User user = userRepo.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User","id", (userId)));

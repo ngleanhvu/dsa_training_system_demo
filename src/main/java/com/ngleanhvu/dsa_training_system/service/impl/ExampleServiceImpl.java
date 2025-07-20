@@ -3,6 +3,7 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.dto.request.ExampleCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ExampleUpdateInfoRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ExampleResponse;
 import com.ngleanhvu.dsa_training_system.entity.Example;
 import com.ngleanhvu.dsa_training_system.entity.Problem;
@@ -114,4 +115,48 @@ public class ExampleServiceImpl implements ExampleService {
 
         return responses;
     }
+
+    @Transactional
+    @Override
+    public void updateExampleImages(Integer exampleId, List<MultipartFile> files) {
+        Example example = exampleRepo.findById(exampleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Example", "id", String.valueOf(exampleId)));
+
+        try {
+            List<String> newUrls = files.stream()
+                    .map(file -> {
+                        try {
+                            return s3Service.upload(file);
+                        } catch (IOException e) {
+                            log.error("Upload error: {}", e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            String imagesJson = objectMapper.writeValueAsString(newUrls);
+            example.setImages(imagesJson);
+            exampleRepo.save(example);
+
+        } catch (JsonProcessingException e) {
+            log.error("JSON error: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    @Override
+    public void updateExampleInfo(Integer exampleId, ExampleUpdateInfoRequest request) {
+        Example example = exampleRepo.findById(exampleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Example", "id", String.valueOf(exampleId)));
+
+        example.setInput(request.getInput());
+        example.setOutput(request.getOutput());
+        example.setExplantation(request.getExplanation());
+
+        exampleRepo.save(example);
+    }
+
+
+
 }

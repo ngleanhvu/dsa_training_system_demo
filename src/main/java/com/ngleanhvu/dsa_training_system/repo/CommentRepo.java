@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface CommentRepo extends JpaRepository<Comment, Integer> {
 
-    @Query(value = "SELECT c FROM Comment c WHERE c.discuss.discussId = :discussId")
+    @Query("SELECT c FROM Comment c WHERE c.discuss.discussId = :discussId AND c.parent.commentId IS NULL")
     Page<Comment> findCommentsByDiscuss(@Param("discussId") int discussId, Pageable pageable);
 
     @Query(value = "SELECT c FROM Comment c WHERE c.parent.commentId = :parentCommentId")
