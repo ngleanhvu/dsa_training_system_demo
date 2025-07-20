@@ -5,13 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateAcceptRateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
+import com.ngleanhvu.dsa_training_system.dto.response.ProblemDocumentResponse;
+import com.ngleanhvu.dsa_training_system.repo.SubmissionRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,10 +27,35 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     private final ProblemDocumentRepoImpl problemDocumentRepoImpl;
     private final ObjectMapper objectMapper;
     private final ProblemDocumentRepo problemDocumentRepo;
+    private final SubmissionRepo submissionRepo;
 
     @Override
-    public Page<ProblemDocument> search(ProblemSearchRequest request, PagingSearch pagingSearch) {
-        return problemDocumentRepoImpl.search(request, pagingSearch);
+    public List<ProblemDocumentResponse> search(ProblemSearchRequest request, PagingSearch pagingSearch) {
+        var problemDocumentPage =  problemDocumentRepoImpl.search(request, pagingSearch);
+        var problemDocuments = problemDocumentPage.getContent();
+        var problemIds = problemDocuments.stream()
+                .map(ProblemDocument::getId)
+                .toList();
+        var problemSolved = submissionRepo.getSubmissionByUserIdAndProblemStatus(request.getUserId(),
+                problemIds);
+        Set<Integer> problemSolvedIdsSet = problemSolved.stream()
+                .map(s -> s.getProblem().getProblemId())
+                .collect(Collectors.toSet());
+        List<ProblemDocumentResponse> problemDocumentResponses = problemDocuments.stream()
+                .map(p -> ProblemDocumentResponse.builder()
+                        .id(p.getId())
+                        .title(p.getTitle())
+                        .acceptanceRate(p.getAcceptanceRate())
+                        .topicIds(p.getTopic().stream().toList())
+                        .createdAt(p.getCreatedAt())
+                        .difficultyId(p.getDifficultyId())
+                        .difficultyName(p.getDifficultyName())
+                        .isAccepted(problemSolvedIdsSet.contains(p.getId()))
+                        .build()
+                )
+                .toList();
+        log.debug("problemDocumentResponses : {}", problemDocumentResponses);
+        return problemDocumentResponses;
     }
 
     @TransactionalEventListener
@@ -34,7 +65,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         log.info("problem create document request: {}", problemDocumentCreateRequest);
         ProblemDocument problemDocument = ProblemDocument.builder()
                 .id(problemDocumentCreateRequest.getProblemId())
-                .url(problemDocumentCreateRequest.getSlug())
+                .url(problemDocumentCreateRequest.getUrl())
                 .title(problemDocumentCreateRequest.getTitle())
                 .createdAt(problemDocumentCreateRequest.getCreatedAt())
                 .acceptanceRate(problemDocumentCreateRequest.getAcceptanceRate())
@@ -54,6 +85,17 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                 problemDocumentUpdateAcceptRateRequest.getAcceptRate());
     }
 
+    @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, groupId = KafkaConst.GROUP_ID)
+    public void deleteProblemDocument(String json) throws JsonProcessingException {
+        Integer problemId = objectMapper.readValue(json, Integer.class);
+        log.info("problem delete document request: {}", problemId);
+        problemDocumentRepoImpl.deleteByProblemId(problemId);
+    }
 
-
+    @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, groupId = KafkaConst.GROUP_ID)
+    public void updateTopic(String json) throws JsonProcessingException {
+        ProblemDocumentUpdateRequest problemDocumentUpdateRequest = objectMapper.readValue(json, ProblemDocumentUpdateRequest.class);
+        log.info("problem update document request: {}", problemDocumentUpdateRequest);
+        problemDocumentRepoImpl.updateProblemsByProblemId(problemDocumentUpdateRequest);
+    }
 }

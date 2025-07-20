@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.security.access.method.P;
 
 import java.util.List;
 
@@ -22,6 +23,10 @@ public interface SubmissionRepo extends JpaRepository<Submission, Integer>, JpaS
     @Query("SELECT s FROM Submission s WHERE s.user.userId = :userId AND s.problem.problemId = :problemId")
     List<Submission> getSubmissionByUserIdAndProblemId(@Param("userId") String userId,
                                                        @Param("problemId") int problemId);
+
+    @Query("SELECT s FROM Submission s WHERE s.submissionStatus = 'ACCEPTED' AND s.user.userId = :userId AND s.problem.problemId IN :problemIds")
+    List<Submission> getSubmissionByUserIdAndProblemStatus(@Param("userId") String userId,
+                                                           @Param("problemIds") List<Integer> problemIds);
 
 
     @Query(value = """

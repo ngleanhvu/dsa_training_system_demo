@@ -69,7 +69,7 @@ public class ProblemController {
 
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/{problemId}/toggle-publish")
-    public ResponseEntity<?> togglePublishProblem(@PathVariable("problemId") Integer problemId) {
+    public ResponseEntity<?> togglePublishProblem(@PathVariable("problemId") Integer problemId) throws JsonProcessingException {
         problemService.togglePublishProblem(problemId);
         var response = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
@@ -91,7 +91,7 @@ public class ProblemController {
     }
 
     @GetMapping("/{problemId}")
-    public ResponseEntity<?> getProblem(@PathVariable Integer problemId) {
+    public ResponseEntity<?> getProblem(@PathVariable Integer problemId) throws JsonProcessingException {
         var response = problemService.getProblem(problemId);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())

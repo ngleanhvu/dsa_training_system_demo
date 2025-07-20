@@ -3,10 +3,7 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
-import com.ngleanhvu.dsa_training_system.dto.request.ProblemCreateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.ProblemSearchAdminRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.ProblemUpdateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.*;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.dto.response.ProblemResponse;
 import com.ngleanhvu.dsa_training_system.entity.*;
@@ -147,20 +144,27 @@ public class ProblemServiceImpl implements ProblemService {
     @Transactional(propagation = Propagation.REQUIRED)
     @Override
     public void updateProblem(Integer problemId, ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
+
         Problem existingProblem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
         ProblemDetail existingProblemDetail = problemDetailRepo.findByProblemId(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("ProblemDetail", "problemId", String.valueOf(problemId)));
 
+        ProblemDocumentUpdateRequest problemDocumentUpdateRequest = new ProblemDocumentUpdateRequest();
+
         if (problemUpdateRequest.getTitle() != null) {
             existingProblem.setTitle(problemUpdateRequest.getTitle());
+            problemDocumentUpdateRequest.setProblemId(existingProblem.getProblemId());
+            problemDocumentUpdateRequest.setTitle(problemUpdateRequest.getTitle());
         }
 
         if (problemUpdateRequest.getDifficultId() != null) {
             Difficulty difficulty = difficultyRepo.findById(problemUpdateRequest.getDifficultId())
                     .orElseThrow(() -> new ResourceNotFoundException("Difficulty", "id", String.valueOf(problemUpdateRequest.getDifficultId())));
             existingProblem.setDifficulty(difficulty);
+            problemDocumentUpdateRequest.setDifficultyName(difficulty.getName());
+            problemDocumentUpdateRequest.setDifficultyId(difficulty.getDifficultyId());
         }
 
         if (problemUpdateRequest.getTopicIds() != null) {
@@ -174,6 +178,8 @@ public class ProblemServiceImpl implements ProblemService {
             Set<Integer> newTopicIds = newTopics.stream()
                     .map(Topic::getTopicId)
                     .collect(Collectors.toSet());
+
+            problemDocumentUpdateRequest.setTopicIds(newTopicIds);
 
             Set<Integer> toRemove = new HashSet<>(currentTopicIds);
             toRemove.removeAll(newTopicIds);
@@ -229,6 +235,9 @@ public class ProblemServiceImpl implements ProblemService {
             existingProblemDetail.setTimeLimit(problemUpdateRequest.getTimeLimit());
         }
 
+        String problemDocumentUpdateJson = objectMapper.writeValueAsString(problemDocumentUpdateRequest);
+        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, problemDocumentUpdateJson);
+
         problemRepo.save(existingProblem);
         problemDetailRepo.save(existingProblemDetail);
     }
@@ -239,7 +248,7 @@ public class ProblemServiceImpl implements ProblemService {
     }
 
     @Override
-    public ProblemResponse getProblem(Integer problemId) {
+    public ProblemResponse getProblem(Integer problemId) throws JsonProcessingException {
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
@@ -258,6 +267,10 @@ public class ProblemServiceImpl implements ProblemService {
                 .build();
 
         log.debug("Fetched problem response: {}", response);
+
+        String problemIdJson = objectMapper.writeValueAsString(problem);
+
+        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, problemIdJson);
 
         return response;
     }

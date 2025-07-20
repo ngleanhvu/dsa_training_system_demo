@@ -20,4 +20,5 @@ public class ProblemSearchRequest {
     private RangeRequest<Double> acceptanceRateRange;
     private RangeRequest<String> publishedDateRange;
     private List<SubmissionStatus> status;
+    private String userId;
 }

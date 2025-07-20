@@ -3,6 +3,7 @@ package com.ngleanhvu.dsa_training_system.elasticsearch;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,8 @@ public class ProblemDocumentRepoImpl  {
 
     private final ElasticsearchOperations operations;
     private final ElasticsearchClient elasticsearchClient;
+
+    private final String INDEX_NAME = "problem_index";
 
 
     public Page<ProblemDocument> search(ProblemSearchRequest searchRequest, PagingSearch pagingSearch) {
@@ -79,7 +82,7 @@ public class ProblemDocumentRepoImpl  {
         log.info("acceptRate: {}", acceptRate);
         try {
             elasticsearchClient.update(u -> u
-                            .index("problem_index")
+                            .index(INDEX_NAME)
                             .id(problemId.toString())
                             .doc(Map.of("acceptanceRate", acceptRate))
                     , Map.class);
@@ -88,6 +91,41 @@ public class ProblemDocumentRepoImpl  {
         }
     }
 
+    public void updateProblemsByProblemId(ProblemDocumentUpdateRequest request) {
+        log.info("updateProblemsByProblemId: {}", request.getProblemId());
+        log.info("problemDocumentUpdateRequest: {}", request);
+
+        try {
+            elasticsearchClient.update(u -> u
+                            .index(INDEX_NAME)
+                            .id(request.getProblemId().toString())
+                            .doc(Map.of(
+                                    "title", request.getTitle(),
+                                    "difficultyId", request.getDifficultyId(),
+                                    "difficultyName", request.getDifficultyName(),
+                                    "topic", request.getTopicIds()
+                            )),
+                    ProblemDocument.class
+            );
+            log.info("Updated document with problemId {}", request.getProblemId());
+        } catch (IOException e) {
+            log.error("Failed to update document with problemId {}", request.getProblemId(), e);
+        }
+    }
+
+
+    public void deleteByProblemId(Integer problemId) {
+        log.info("deleteByProblemId: {}", problemId);
+        try {
+            elasticsearchClient.delete(d -> d
+                    .index(INDEX_NAME)
+                    .id(problemId.toString())
+            );
+            log.info("Deleted problemId {} from Elasticsearch", problemId);
+        } catch (IOException e) {
+            log.error("Failed to delete problemId {} from Elasticsearch", problemId, e);
+        }
+    }
     private <T> void applyDateRange(RangeRequest<T> range, String fieldName, boolean isAll, BoolQuery.Builder b) {
         if (range == null || (range.getFrom() == null && range.getTo() == null)) {
             return;

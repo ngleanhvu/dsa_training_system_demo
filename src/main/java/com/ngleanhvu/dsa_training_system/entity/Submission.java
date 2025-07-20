@@ -51,6 +51,7 @@ public class Submission {
     @Column(nullable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
 
+    @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
