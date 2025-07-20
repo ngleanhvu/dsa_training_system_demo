@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,6 +23,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @Slf4j
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -41,6 +43,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/google/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/github/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/problems**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/comments**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/discuss**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/contests**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2

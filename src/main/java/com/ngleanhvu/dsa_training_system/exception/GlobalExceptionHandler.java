@@ -20,6 +20,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(PermissionException.class)
+    public ResponseEntity<ErrorResponse> permissionException(PermissionException e) {
+        ErrorResponse  errorResponse = ErrorResponse.builder()
+                .code(HttpStatus.UNAUTHORIZED.value())
+                .message(e.getMessage())
+                .details(null)
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
     @ExceptionHandler(InvalidValueException.class)
     public ResponseEntity<ErrorResponse> invalidValueException(InvalidValueException e) {
         ErrorResponse errorResponse = ErrorResponse.builder()

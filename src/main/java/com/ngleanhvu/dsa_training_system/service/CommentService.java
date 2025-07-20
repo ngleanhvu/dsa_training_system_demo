@@ -17,5 +17,5 @@ public interface CommentService {
 
     void toggleVote(String userId, Integer commentId);
     void updateComment(Integer commentId, CommentUpdateRequest commentUpdateRequest);
-    void deleteComment(Integer commentId);
+    void deleteComment(Integer commentId, String userId);
 }

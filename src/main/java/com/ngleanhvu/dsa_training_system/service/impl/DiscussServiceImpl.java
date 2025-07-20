@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.dto.request.DiscussUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
+import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
@@ -17,7 +18,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,6 +35,7 @@ public class DiscussServiceImpl implements DiscussService {
     @Transactional
     @Override
     public void createDiscuss(DiscussCreateRequest request) {
+
         log.info("request: {}", request);
 
         Discuss discuss = Discuss.builder()
@@ -88,6 +89,27 @@ public class DiscussServiceImpl implements DiscussService {
         return discussResponses;
     }
 
+    @Override
+    public DiscussResponse getDiscussById(Integer discussId) {
+        Discuss d = discussRepo.findById(discussId)
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss","id",String.valueOf(discussId)));
+
+        DiscussResponse discussResponse = DiscussResponse.builder()
+                .title(d.getTitle())
+                .content(d.getContent())
+                .createdAt(d.getCreatedAt())
+                .upVotes(d.getUpVotes())
+                .views(d.getViews())
+                .userAvatar(d.getUser().getAvatar())
+                .userEmail(d.getUser().getEmail())
+                .userDisplayName(d.getUser().getDisplayName())
+                .build();
+
+        log.info("discussResponse: {}", discussResponse);
+
+        return discussResponse;
+    }
+
     @Transactional
     @Override
     public void toggleVote(String userId,
@@ -102,7 +124,7 @@ public class DiscussServiceImpl implements DiscussService {
             discuss.setUpVotes(discuss.getUpVotes() - 1);
         } else {
             User user = userRepo.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User","id", String.valueOf(userId)));
+                    .orElseThrow(() -> new ResourceNotFoundException("User","id", (userId)));
             DiscussVote discussVote = new DiscussVote();
             discussVote.setDiscuss(discuss);
             discussVote.setUser(user);
@@ -116,8 +138,16 @@ public class DiscussServiceImpl implements DiscussService {
 
     @Transactional
     @Override
-    public void deleteDiscuss(Integer discussId) {
-        discussRepo.deleteById(discussId);
+    public void deleteDiscuss(String userId,
+                              Integer discussId) {
+        Discuss discuss = discussRepo.findById(discussId)
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss","id", String.valueOf(discussId)));
+
+        if (!discuss.getUser().getUserId().equals(userId)) {
+            throw new PermissionException("Discuss", String.valueOf(discussId));
+        }
+
+        discussRepo.delete(discuss);
     }
 
     @Transactional
@@ -126,11 +156,13 @@ public class DiscussServiceImpl implements DiscussService {
         Discuss discuss = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
 
-        // Cập nhật title & content
+        if (!discuss.getUser().getUserId().equals(request.getUserId())) {
+            throw new PermissionException("Discuss",String.valueOf(discussId));
+        }
+
         discuss.setTitle(request.getTitle());
         discuss.setContent(request.getContent());
 
-        // Cập nhật tags nếu có
         if (request.getTagIds() != null) {
             List<Tag> newTags = tagRepo.findAllById(request.getTagIds());
             List<DiscussTag> currentDiscussTags = discussTagRepo.findByDiscussId(discussId);
@@ -172,6 +204,4 @@ public class DiscussServiceImpl implements DiscussService {
 
         discussRepo.save(discuss);
     }
-
-
 }

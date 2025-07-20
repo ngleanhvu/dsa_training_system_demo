@@ -5,4 +5,5 @@ import lombok.Data;
 @Data
 public class CommentUpdateRequest {
     private String content;
+    private String userId;
 }

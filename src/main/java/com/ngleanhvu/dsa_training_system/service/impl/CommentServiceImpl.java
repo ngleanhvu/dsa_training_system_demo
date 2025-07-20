@@ -8,6 +8,7 @@ import com.ngleanhvu.dsa_training_system.entity.Comment;
 import com.ngleanhvu.dsa_training_system.entity.CommentVote;
 import com.ngleanhvu.dsa_training_system.entity.Discuss;
 import com.ngleanhvu.dsa_training_system.entity.User;
+import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.CommentRepo;
 import com.ngleanhvu.dsa_training_system.repo.CommentVoteRepo;
@@ -36,6 +37,10 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public void createComment(CommentRequest commentRequest,
                               Integer discussId) {
+
+        User user = userRepo.findById(commentRequest.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", commentRequest.getUserId()));
+
         Discuss discuss = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
 
@@ -43,6 +48,7 @@ public class CommentServiceImpl implements CommentService {
                 .discuss(discuss)
                 .status(1)
                 .content(commentRequest.getContent())
+                .user(user)
                 .build();
 
         if (commentRequest.getParentCommentId() != null) {
@@ -113,7 +119,7 @@ public class CommentServiceImpl implements CommentService {
         } else {
 
             User user = userRepo.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", String.valueOf(userId)));
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
             CommentVote commentVote = new CommentVote();
             commentVote.setComment(comment);
@@ -128,15 +134,29 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public void updateComment(Integer commentId, CommentUpdateRequest commentUpdateRequest) {
+
         Comment comment = commentRepo.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
+
+        if (!comment.getUser().getUserId().equals(commentUpdateRequest.getUserId())) {
+            throw new PermissionException("User",commentUpdateRequest.getUserId());
+        }
+
         comment.setContent(commentUpdateRequest.getContent());
         commentRepo.save(comment);
     }
 
     @Transactional
     @Override
-    public void deleteComment(Integer commentId) {
+    public void deleteComment(Integer commentId, String userId) {
+
+        Comment comment = commentRepo.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
+
+        if (!comment.getUser().getUserId().equals(userId)) {
+            throw new PermissionException("User",userId);
+        }
+
         commentRepo.deleteById(commentId);
     }
 
