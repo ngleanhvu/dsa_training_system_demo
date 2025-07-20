@@ -8,6 +8,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.*;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.SubmissionMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.SubmissionSpecification;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
@@ -316,15 +317,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         }
 
         List<BasicResultSubmissionResponse> responses = submissions.stream()
-                .map(s -> BasicResultSubmissionResponse.builder()
-                        .submissionId(s.getSubmissionId())
-                        .time(s.getRuntimeMs())
-                        .timestamp(s.getCreatedAt())
-                        .programmingLanguage(s.getProgrammingLanguage())
-                        .message(s.getErrorMessage())
-                        .status(s.getSubmissionStatus())
-                        .submissionId(s.getSubmissionId())
-                        .build())
+                .map(SubmissionMapper::toDto)
                 .toList();
 
         log.info("responses: {}", responses);
@@ -346,15 +339,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         }
 
         List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.getContent().stream()
-                .map(s -> BasicResultSubmissionResponse.builder()
-                        .submissionId(s.getSubmissionId())
-                        .time(s.getRuntimeMs())
-                        .memory(s.getMemoryKb())
-                        .timestamp(s.getCreatedAt())
-                        .programmingLanguage(s.getProgrammingLanguage())
-                        .message(s.getErrorMessage())
-                        .status(s.getSubmissionStatus())
-                        .build())
+                .map(SubmissionMapper::toDto)
                 .toList();
 
         log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);

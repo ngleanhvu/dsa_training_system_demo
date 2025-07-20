@@ -7,6 +7,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.UserResponse;
 import com.ngleanhvu.dsa_training_system.entity.User;
 import com.ngleanhvu.dsa_training_system.entity.UserDetails;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.UserMapper;
 import com.ngleanhvu.dsa_training_system.repo.UserDetailRepo;
 import com.ngleanhvu.dsa_training_system.repo.UserRepo;
 import com.ngleanhvu.dsa_training_system.service.UserService;
@@ -20,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
-    private UserRepo userRepo;
-    private UserDetailRepo userDetailRepo;
+    private final UserRepo userRepo;
+    private final UserDetailRepo userDetailRepo;
 
     @Override
     public UserResponse getUserByEmail(String email) {
@@ -30,11 +31,7 @@ public class UserServiceImpl implements UserService {
 
         log.info("User: {}", user);
 
-        UserResponse userResponse = UserResponse.builder()
-                .email(user.getEmail())
-                .displayName(user.getDisplayName())
-                .avatar(user.getAvatar())
-                .build();
+        UserResponse userResponse = UserMapper.toDto(user);
 
         log.info("UserResponse: {}", userResponse);
 
@@ -48,11 +45,7 @@ public class UserServiceImpl implements UserService {
 
         log.info("User: {}", user);
 
-        UserResponse userResponse = UserResponse.builder()
-                .email(user.getEmail())
-                .displayName(user.getDisplayName())
-                .avatar(user.getAvatar())
-                .build();
+        UserResponse userResponse = UserMapper.toDto(user);
 
         log.info("UserResponse: {}", userResponse);
 
@@ -65,23 +58,9 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
         log.info("User: {}", user);
 
-        UserResponse userResponse = UserResponse.builder()
-                .email(user.getEmail())
-                .displayName(user.getDisplayName())
-                .avatar(user.getAvatar())
-                .build();
+        UserResponse userResponse = UserMapper.toDto(user);
 
-        UserDetailResponse userDetailResponse = UserDetailResponse.builder()
-                .user(userResponse)
-                .dateOfBirth(user.getUserDetails().getDateOfBirth())
-                .address(user.getUserDetails().getAddress())
-                .firstName(user.getUserDetails().getFirstName())
-                .lastName(user.getUserDetails().getLastName())
-                .gender(user.getUserDetails().getGender())
-                .phoneNumber(user.getUserDetails().getPhoneNumber())
-                .githubUrl(user.getUserDetails().getGithubUrl())
-                .linkedinUrl(user.getUserDetails().getLinkedinUrl())
-                .build();
+        UserDetailResponse userDetailResponse = UserMapper.toDetailDto(user, userResponse);
 
         log.info("UserDetailResponse: {}", userDetailResponse);
 
@@ -94,6 +73,13 @@ public class UserServiceImpl implements UserService {
 
         UserDetails userDetails = userDetailRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        if (userDetailUpdateRequest.getDisplayName() != null) {
+            User user = userRepo.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            user.setDisplayName(userDetailUpdateRequest.getDisplayName());
+            userRepo.save(user);
+        }
 
         log.info("UserDetails: {}", userDetails);
 

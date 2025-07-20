@@ -9,6 +9,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.Contest;
 import com.ngleanhvu.dsa_training_system.entity.ContestStatus;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.ContestMapper;
 import com.ngleanhvu.dsa_training_system.repo.ContestRepo;
 import com.ngleanhvu.dsa_training_system.repo.spec.ContestSpecification;
 import com.ngleanhvu.dsa_training_system.service.ContestService;
@@ -73,11 +74,7 @@ public class ContestServiceImpl implements ContestService {
         log.debug("contestPage: {}", contestPage);
 
         List<ContestResponse> contestResponses = contestPage.getContent().stream()
-                .map(c -> ContestResponse.builder()
-                        .contestId(c.getContestId())
-                        .title(c.getTitle())
-                        .startTime(c.getStartTime())
-                        .build())
+                .map(ContestMapper::toDto)
                 .toList();
 
         log.debug("contestResponses: {}", contestResponses);
@@ -90,14 +87,7 @@ public class ContestServiceImpl implements ContestService {
         Contest contest = contestRepo.findById(contestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Contest", "id", String.valueOf(contestId)));
 
-        ContestDetailResponse contestDetailResponse = ContestDetailResponse.builder()
-                .contestId(contest.getContestId())
-                .title(contest.getTitle())
-                .description(contest.getDescription())
-                .durationMinutes(contest.getDurationMinutes())
-                .startTime(contest.getStartTime())
-                .endTime(contest.getEndTime())
-                .build();
+        ContestDetailResponse contestDetailResponse = ContestMapper.toDetailDto(contest);
 
         log.debug("contestDetailResponse: {}", contestDetailResponse);
 

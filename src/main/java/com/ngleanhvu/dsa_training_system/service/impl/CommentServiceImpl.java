@@ -10,6 +10,7 @@ import com.ngleanhvu.dsa_training_system.entity.Discuss;
 import com.ngleanhvu.dsa_training_system.entity.User;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.CommentMapper;
 import com.ngleanhvu.dsa_training_system.repo.CommentRepo;
 import com.ngleanhvu.dsa_training_system.repo.CommentVoteRepo;
 import com.ngleanhvu.dsa_training_system.repo.DiscussRepo;
@@ -69,16 +70,7 @@ public class CommentServiceImpl implements CommentService {
         Page<Comment> comments = commentRepo.findCommentsByDiscuss(discussId, pagingSearch.toPageable());
         log.info("comments: {}", comments);
         List<CommentResponse> commentResponses = comments.stream()
-                .map(c -> CommentResponse.builder()
-                        .commentCount(c.getCommentCount())
-                        .views(c.getViews())
-                        .upVotes(c.getUpVotes())
-                        .content(c.getContent())
-                        .createdAt(c.getCreatedAt())
-                        .userEmail(c.getUser().getEmail())
-                        .userAvatar(c.getUser().getAvatar())
-                        .userDisplayName(c.getUser().getDisplayName())
-                        .build())
+                .map(CommentMapper::toDto)
                 .toList();
         log.info("commentResponses: {}", commentResponses);
         return commentResponses;
@@ -90,16 +82,7 @@ public class CommentServiceImpl implements CommentService {
         Page<Comment> comments = commentRepo.findCommentsByParentComment(parentCommentId, pagingSearch.toPageable());
         log.info("comments: {}", comments);
         List<CommentResponse> commentResponses = comments.stream()
-                .map(c -> CommentResponse.builder()
-                        .commentCount(c.getCommentCount())
-                        .views(c.getViews())
-                        .upVotes(c.getUpVotes())
-                        .content(c.getContent())
-                        .createdAt(c.getCreatedAt())
-                        .userEmail(c.getUser().getEmail())
-                        .userAvatar(c.getUser().getAvatar())
-                        .userDisplayName(c.getUser().getDisplayName())
-                        .build())
+                .map(CommentMapper::toDto)
                 .toList();
         log.info("commentResponses: {}", commentResponses);
         return commentResponses;

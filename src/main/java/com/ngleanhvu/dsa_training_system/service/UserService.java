@@ -9,6 +9,6 @@ public interface UserService {
     UserResponse getUserByEmail(String email);
     UserResponse getUserById(String userId);
     UserDetailResponse getProfile(String email);
-    void updateUserDetailsByUserId(String email, UserDetailUpdateRequest userDetailUpdateRequest);
+    void updateUserDetailsByUserId(String userId, UserDetailUpdateRequest userDetailUpdateRequest);
     void updateUserByUserId(String userId, UserUpdateRequest userUpdateRequest);
 }

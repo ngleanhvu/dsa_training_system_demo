@@ -290,7 +290,6 @@ public class AuthServiceImpl implements AuthService {
         emailService.sendEmail(emailRecord.to(), emailRecord.subject(), emailRecord.body());
     }
 
-
     private Map<String, Object> getGitHubUserInfo(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
@@ -303,4 +302,6 @@ public class AuthServiceImpl implements AuthService {
 
         return response.getBody();
     }
+
+
 }

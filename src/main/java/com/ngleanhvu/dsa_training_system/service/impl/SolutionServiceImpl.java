@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.DiscussMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.SolutionService;
@@ -84,16 +85,7 @@ public class SolutionServiceImpl implements SolutionService {
         Page<Discuss> discussPage = discussRepo.findAll(spec, pagingSearch.toPageable());
 
         List<DiscussResponse> solutionResponses = discussPage.getContent().stream()
-                .map(s -> DiscussResponse.builder()
-                        .title(s.getTitle())
-                        .content(s.getContent())
-                        .createdAt(s.getCreatedAt())
-                        .upVotes(s.getUpVotes())
-                        .views(s.getViews())
-                        .userAvatar(s.getUser().getAvatar())
-                        .userEmail(s.getUser().getEmail())
-                        .userDisplayName(s.getUser().getDisplayName())
-                        .build())
+                .map(DiscussMapper::toDto)
                 .toList();
 
         log.debug("solutionResponses: {}", solutionResponses);
