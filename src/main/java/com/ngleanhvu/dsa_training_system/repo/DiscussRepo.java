@@ -13,6 +13,6 @@ public interface DiscussRepo extends JpaRepository<Discuss, Integer>, JpaSpecifi
     @Query(value = "SELECT d FROM Discuss d WHERE d.content LIKE concat('%',:keyword,'%')")
     Page<Discuss> findDiscusses(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT COUNT(d) FROM Discuss d WHERE d.user.userId = :userId")
-    int countByUserId(@Param("userId") String userId);
+    @Query("SELECT COUNT(d) FROM Discuss d WHERE d.user.email= :email")
+    int countByUserEmail(@Param("email") String email);
 }

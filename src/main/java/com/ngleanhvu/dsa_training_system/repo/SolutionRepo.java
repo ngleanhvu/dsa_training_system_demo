@@ -7,6 +7,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface SolutionRepo extends JpaRepository<Solution, Integer> {
 
-    @Query("SELECT COUNT(s) FROM Solution s WHERE s.discuss.user.userId = :userId")
-    int countByUserId(@Param("userId") String userId);
+    @Query("SELECT COUNT(s) FROM Solution s WHERE s.discuss.user.email = :email")
+    int countByUserEmail(@Param("email") String email);
 }

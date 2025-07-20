@@ -17,6 +17,6 @@ public interface CommentRepo extends JpaRepository<Comment, Integer> {
     @Query(value = "SELECT c FROM Comment c WHERE c.parent.commentId = :parentCommentId")
     Page<Comment> findCommentsByParentComment(@Param("parentCommentId") int parentCommentId, Pageable pageable);
 
-    @Query("SELECT COUNT(c) FROM Comment c WHERE c.user.userId = :userId")
-    int countByUserId(@Param("userId") String userId);
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.user.email = :email")
+    int countByUserEmail(@Param("email") String email);
 }
