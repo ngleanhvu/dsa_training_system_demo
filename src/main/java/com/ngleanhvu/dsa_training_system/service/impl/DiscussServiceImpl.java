@@ -9,13 +9,14 @@ import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
-import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -32,16 +33,26 @@ public class DiscussServiceImpl implements DiscussService {
     private final DiscussVoteRepo discussVoteRepo;
     private final UserRepo userRepo;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Transactional
     @Override
     public void createDiscuss(DiscussCreateRequest request) {
+
+        User user = userRepo.findById(request.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "userId", request.getUserId()));
 
         log.info("request: {}", request);
 
         Discuss discuss = Discuss.builder()
                 .title(request.getTitle())
                 .content(AppUtil.sanitize(request.getContent()))
+                .upVotes(0)
+                .views(0)
+                .commentCount(0)
                 .status(1)
+                .user(user)
                 .build();
 
         discussRepo.save(discuss);
@@ -67,13 +78,44 @@ public class DiscussServiceImpl implements DiscussService {
 
     @Override
     public List<DiscussResponse> getDiscusses(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
-        Specification<Discuss> specification = DiscussSpecification.hasKeyword(discussFilterRequest.getKeyword())
-                        .and(DiscussSpecification.hasTag(discussFilterRequest.getTagIds())
-                        .and(DiscussSpecification.hasTimestamp(discussFilterRequest.getTimestamp())));
-        Page<Discuss> discussPage = discussRepo.findAll(specification, pagingSearch.toPageable());
-        List<Discuss> discusses = discussPage.getContent();
-        log.info("discusses: {}", discusses);
-        List<DiscussResponse> discussResponses = discusses.stream()
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Discuss> cq = cb.createQuery(Discuss.class);
+        Root<Discuss> root = cq.from(Discuss.class);
+        root.fetch("user", JoinType.LEFT);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (discussFilterRequest.getKeyword() != null && !discussFilterRequest.getKeyword().isBlank()) {
+            String likePattern = "%" + discussFilterRequest.getKeyword().toLowerCase() + "%";
+            predicates.add(cb.like((cb.lower(root.get("title"))), likePattern));
+        }
+
+        if (discussFilterRequest.getTagIds() != null && !discussFilterRequest.getTagIds().isEmpty()) {
+            Join<Discuss, DiscussTag> tagJoin = root.join("discussTags", JoinType.INNER);
+            predicates.add(tagJoin.get("tag").get("tagId").in(discussFilterRequest.getTagIds()));
+            predicates.add(cb.equal(tagJoin.get("status"), 1));
+        }
+
+        if (discussFilterRequest.getTimestamp() != null) {
+            predicates.add(
+                    cb.between(
+                            root.get("createdAt"),
+                            discussFilterRequest.getTimestamp().getFrom(),
+                            discussFilterRequest.getTimestamp().getTo()
+                    )
+            );
+        }
+
+        cq.where(cb.and(predicates.toArray(new Predicate[0])));
+        cq.orderBy(cb.desc(root.get("createdAt")));
+
+        TypedQuery<Discuss> query = entityManager.createQuery(cq);
+        query.setFirstResult(pagingSearch.getPage() * pagingSearch.getSize());
+        query.setMaxResults(pagingSearch.getSize());
+
+        List<Discuss> results = query.getResultList();
+
+        return results.stream()
                 .map(d -> DiscussResponse.builder()
                         .title(d.getTitle())
                         .content(d.getContent())
@@ -85,9 +127,8 @@ public class DiscussServiceImpl implements DiscussService {
                         .userDisplayName(d.getUser().getDisplayName())
                         .build())
                 .toList();
-        log.info("discussResponses: {}", discussResponses);
-        return discussResponses;
     }
+
 
     @Override
     public DiscussResponse getDiscussById(Integer discussId) {

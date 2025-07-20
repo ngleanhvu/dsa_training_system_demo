@@ -1,10 +1,7 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,15 +11,18 @@ import java.time.LocalDateTime;
 @Table(name = "discuss_tags", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"discuss_id","tag_id"})
 })
-@Builder @NoArgsConstructor @AllArgsConstructor @Data
+@Builder @NoArgsConstructor @AllArgsConstructor @Getter
+@Setter
 public class DiscussTag {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer discussTagId;
 
+    @JoinColumn(name = "discuss_id")
     @ManyToOne
     private Discuss discuss;
 
+    @JoinColumn(name = "tag_id")
     @ManyToOne
     private Tag tag;
 

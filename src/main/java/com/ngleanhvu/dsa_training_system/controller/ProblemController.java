@@ -40,7 +40,6 @@ public class ProblemController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/search")
     public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
                                            @RequestParam(required = false, defaultValue = "id") String sortBy,

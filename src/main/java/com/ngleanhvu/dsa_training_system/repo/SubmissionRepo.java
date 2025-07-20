@@ -19,8 +19,8 @@ public interface SubmissionRepo extends JpaRepository<Submission, Integer>, JpaS
     SubmissionCountProjection countSubmissionByProblemAndStatus(@Param("status") SubmissionStatus status,
                                                                 @Param("problemId") Integer problemId);
 
-    @Query("SELECT s FROM Submission s WHERE s.user.email = :email AND s.problem.problemId = :problemId")
-    List<Submission> getSubmissionByUserEmailAndProblemId(@Param("email") String email,
+    @Query("SELECT s FROM Submission s WHERE s.user.userId = :userId AND s.problem.problemId = :problemId")
+    List<Submission> getSubmissionByUserIdAndProblemId(@Param("userId") String userId,
                                                        @Param("problemId") int problemId);
 
 

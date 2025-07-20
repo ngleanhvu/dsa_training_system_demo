@@ -9,7 +9,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "discuss")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class Discuss {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +29,7 @@ public class Discuss {
     @Column(name = "comment_count")
     private Integer commentCount = 0;
 
+    @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 

@@ -9,6 +9,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("api/v1/discuss")
+@Slf4j
 public class DiscussController {
 
     private final DiscussService discussService;
@@ -24,7 +26,10 @@ public class DiscussController {
 
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping
-    public ResponseEntity<?> createDiscuss(@RequestBody DiscussCreateRequest discussCreateRequest) {
+    public ResponseEntity<?> createDiscuss(@RequestBody DiscussCreateRequest discussCreateRequest,
+                                           @RequestHeader("Authorization") String authHeader) {
+        String userId = jwtUtil.getUserIdFromToken(authHeader);
+        discussCreateRequest.setUserId(userId);
         discussService.createDiscuss(discussCreateRequest);
         var response = ApiResponse.builder()
                 .message("Discuss create success")
@@ -34,14 +39,14 @@ public class DiscussController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @GetMapping
+    @PostMapping("/search")
     public ResponseEntity<?> getDiscusses (@RequestBody DiscussFilterRequest discussFilterRequest,
                                            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
                                            @RequestParam(required = false, defaultValue = "1") int page,
                                            @RequestParam(required = false, defaultValue = "10") int size,
                                            @RequestParam(required = false, defaultValue = "desc") String sortDir) {
         PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setPage(page);
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
         pagingSearch.setSize(size);
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDir);
@@ -62,7 +67,8 @@ public class DiscussController {
                                            @PathVariable("discussId") Integer discussId,
                                            @RequestHeader("Authorization") String token) {
 
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
+
         discussUpdateRequest.setUserId(userId);
 
         discussService.updateDiscuss(discussId, discussUpdateRequest);
@@ -80,7 +86,7 @@ public class DiscussController {
     @DeleteMapping("/{discussId}")
     public ResponseEntity<?> deleteDiscuss(@PathVariable("discussId") Integer discussId,
                                            @RequestHeader("Authorization") String token) {
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
         discussService.deleteDiscuss(userId, discussId);
         var response = ApiResponse.builder()
                 .message("Discuss delete success")
@@ -101,10 +107,11 @@ public class DiscussController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping("/{discussId}/toggle")
     public ResponseEntity<?> toggleVote(@RequestHeader("Authorization") String token,
                                         @PathVariable("discussId") Integer discussId) {
-        String userId = String.valueOf(jwtUtil.getSubject(token));
+        String userId = jwtUtil.getUserIdFromToken(token);
         discussService.toggleVote(userId, discussId);
         var response = ApiResponse.builder()
                 .message("Discuss toggle success")

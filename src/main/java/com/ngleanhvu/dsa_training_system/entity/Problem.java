@@ -11,7 +11,8 @@ import java.util.Set;
 
 @Entity
 @Table(name = "problems")
-@Builder @NoArgsConstructor @AllArgsConstructor @Data
+@Builder @NoArgsConstructor @AllArgsConstructor @Getter
+@Setter
 public class Problem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +38,8 @@ public class Problem {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    private LocalDateTime publishedAt;
+    @Column(name = "publish_at")
+    private LocalDateTime publishAt;
 
     private boolean isPublic;
 

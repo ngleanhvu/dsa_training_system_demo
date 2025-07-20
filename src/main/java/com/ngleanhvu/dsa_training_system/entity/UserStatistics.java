@@ -1,10 +1,7 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -12,7 +9,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_statistics")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class UserStatistics {
 
     @Id

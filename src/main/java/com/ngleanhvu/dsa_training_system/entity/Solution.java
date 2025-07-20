@@ -1,10 +1,7 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
@@ -13,7 +10,8 @@ import java.time.LocalDateTime;
 @Table(name = "solutions", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"discuss_id", "problem_id"})
 })
-@Builder @AllArgsConstructor @NoArgsConstructor @Data
+@Builder @AllArgsConstructor @NoArgsConstructor @Getter
+@Setter
 public class Solution {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +21,7 @@ public class Solution {
     @JoinColumn(name = "discuss_id", nullable = false)
     private Discuss discuss;
 
+    @JoinColumn(name = "problem_id")
     @ManyToOne
     private Problem problem;
 

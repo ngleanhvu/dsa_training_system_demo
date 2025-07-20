@@ -7,6 +7,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RequestHeader;
+
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.Instant;
@@ -114,4 +116,14 @@ public class JwtUtil {
         return parseClaims(token).map(Claims::getIssuedAt);
     }
 
+    public String getUserIdFromToken(@RequestHeader("Authorization")  String authHeader) {
+        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
+
+        String userId = this.getSubject(token)
+                .orElseThrow(() -> new RuntimeException("Invalid token: subject is missing"));
+
+        log.debug("userId = {}", userId);
+
+        return userId;
+    }
 }

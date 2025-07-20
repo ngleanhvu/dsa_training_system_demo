@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -15,28 +16,32 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class DiscussSpecification {
+
     public static Specification<Discuss> hasKeyword(String keyword) {
-        return ((root, query, cb) -> {
-           if (keyword == null || keyword.isEmpty()) {
-               return null;
-           }
+        return (root, query, cb) -> {
+            if (keyword == null || keyword.trim().isEmpty()) {
+                return null;
+            }
 
-           String likePattern = "%" + keyword.trim().toLowerCase() + "%";
+            String likePattern = "%" + keyword.trim().toLowerCase() + "%";
+            System.out.println("Like pattern: " + likePattern);
+            System.out.println("Searching in field: " + root.get("title"));
 
-            return cb.or(
-                    cb.like(cb.lower(root.get("discuss").get("title")), likePattern),
-                    cb.like(cb.lower(root.get("discuss").get("content")), likePattern)
-            );
-        });
+            System.out.println(likePattern);
+
+            return cb.like(cb.lower(root.get("title")), likePattern);
+        };
     }
 
     public static Specification<Discuss> hasTimestamp(RangeRequest<LocalDate> timestamp) {
         return (root, query, cb) -> {
-            if (timestamp == null || (timestamp.getFrom() == null && timestamp.getTo() == null)) return null;
+            if (timestamp == null || (timestamp.getFrom() == null && timestamp.getTo() == null)) {
+                return null;
+            }
 
             Path<LocalDateTime> createdAtPath = root.get("createdAt");
-
             List<Predicate> predicates = new ArrayList<>();
 
             if (timestamp.getFrom() != null) {
@@ -51,23 +56,26 @@ public class DiscussSpecification {
     }
 
     public static Specification<Discuss> hasTag(List<Integer> tagIds) {
-        return ((root, query, cb) -> {
-           if (tagIds == null || tagIds.isEmpty()) {
-               return null;
-           }
+        return (root, query, cb) -> {
+            if (tagIds == null || tagIds.isEmpty()) {
+                return null;
+            }
 
-           Join<Discuss, DiscussTag> join = root.join("discussTags", JoinType.INNER);
+            // Tránh bị duplicate khi dùng join (nếu cần distinct)
+            query.distinct(true);
 
-           return join.get("tag").get("tagId").in(tagIds);
-        });
+            Join<Discuss, DiscussTag> join = root.join("discussTags", JoinType.INNER);
+            return join.get("tag").get("tagId").in(tagIds);
+        };
     }
 
     public static Specification<Discuss> hasProblem(Integer problemId) {
         return (root, query, cb) -> {
-            if (problemId == null) return null;
+            if (problemId == null) {
+                return null;
+            }
 
             Join<Discuss, Solution> join = root.join("solution", JoinType.INNER);
-
             return cb.equal(join.get("problem").get("problemId"), problemId);
         };
     }

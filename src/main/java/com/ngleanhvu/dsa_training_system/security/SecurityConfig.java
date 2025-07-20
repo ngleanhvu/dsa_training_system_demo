@@ -12,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -45,10 +46,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/google/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/github/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/problems**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/comments**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/discuss**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/contests**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/contests/search**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2
@@ -76,7 +76,11 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() throws Exception {
         RSAPublicKey publicKey = RsaKeyUtil.getPublicKey();
-        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
+
+        decoder.setJwtValidator(JwtValidators.createDefault());
+
+        return decoder;
     }
 
 }

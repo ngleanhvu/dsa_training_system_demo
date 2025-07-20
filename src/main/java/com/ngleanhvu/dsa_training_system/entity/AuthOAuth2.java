@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 @Table(name = "auth_oauth2", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"provider", "provider_user_id"})
 })
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -17,5 +17,4 @@ public class SubmissionMapper {
                 .build();
     }
 
-    public static SubmissionResponse toSubmissionDto(Sub) {}
 }

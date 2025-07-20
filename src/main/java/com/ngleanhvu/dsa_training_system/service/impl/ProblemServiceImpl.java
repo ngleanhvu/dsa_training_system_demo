@@ -269,7 +269,7 @@ public class ProblemServiceImpl implements ProblemService {
 
         if (!problem.isPublic()) {
             problem.setPublic(true);
-            problem.setPublishedAt(LocalDateTime.now());
+            problem.setPublishAt(LocalDateTime.now());
         } else {
             problem.setPublic(false);
         }

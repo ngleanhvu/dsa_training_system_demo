@@ -2,14 +2,19 @@ package com.ngleanhvu.dsa_training_system.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "auth_local")
 @Builder
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = "user")
 public class AuthLocal {
 
     @Id
@@ -27,15 +32,14 @@ public class AuthLocal {
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
 
-
     private boolean isVerify = false;
 
     private int status = 1;
 
-    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 }
 

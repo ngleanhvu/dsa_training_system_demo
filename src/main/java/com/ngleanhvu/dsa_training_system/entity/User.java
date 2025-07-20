@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users")
 @Builder @Data @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@ToString(exclude = "authLocal")
 public class User {
 
     @Id
