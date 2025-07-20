@@ -29,4 +29,15 @@ public class ExampleController {
                 .build();
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
+
+    @GetMapping("/problem/{problemId}")
+    public ResponseEntity<?> getExample(@PathVariable("problemId") int problemId) {
+        var response = exampleService.getExamples(problemId);
+        var api = ApiResponse.builder()
+                .message("Get examples success")
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(api, HttpStatus.OK);
+    }
 }

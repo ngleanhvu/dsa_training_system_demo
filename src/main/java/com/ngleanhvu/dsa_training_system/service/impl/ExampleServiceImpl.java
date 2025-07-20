@@ -3,9 +3,11 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.dto.request.ExampleCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.ExampleResponse;
 import com.ngleanhvu.dsa_training_system.entity.Example;
 import com.ngleanhvu.dsa_training_system.entity.Problem;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
+import com.ngleanhvu.dsa_training_system.mappter.ExampleMapper;
 import com.ngleanhvu.dsa_training_system.repo.ExampleRepo;
 import com.ngleanhvu.dsa_training_system.repo.ProblemRepo;
 import com.ngleanhvu.dsa_training_system.service.ExampleService;
@@ -94,5 +96,22 @@ public class ExampleServiceImpl implements ExampleService {
         }
 
         exampleRepo.saveAll(examples);
+    }
+
+    @Override
+    public List<ExampleResponse> getExamples(int problemId) {
+        List<Example> examples = exampleRepo.findByProblem(problemId);
+
+        if (examples.isEmpty()) {
+            return null;
+        }
+
+        List<ExampleResponse> responses = examples.stream()
+                .map(ExampleMapper::mapToDto)
+                .toList();
+
+        log.debug("Responses: {}", responses);
+
+        return responses;
     }
 }

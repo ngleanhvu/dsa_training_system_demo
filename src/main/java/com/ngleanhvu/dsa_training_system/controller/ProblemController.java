@@ -2,6 +2,7 @@ package com.ngleanhvu.dsa_training_system.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.SortRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -28,6 +30,7 @@ public class ProblemController {
     @Value("${page.size}")
     private int pageSize;
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createProblem(@Valid @RequestBody ProblemCreateRequest problemCreateRequest) throws JsonProcessingException {
         log.info("Creating problem: {}", problemCreateRequest);
@@ -37,6 +40,7 @@ public class ProblemController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/search")
     public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
                                            @RequestParam(required = false, defaultValue = "id") String sortBy,
@@ -62,6 +66,51 @@ public class ProblemController {
                 .metadata(response)
                 .build();
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PostMapping("/{problemId}/toggle-publish")
+    public ResponseEntity<?> togglePublishProblem(@PathVariable("problemId") Integer problemId) {
+        problemService.togglePublishProblem(problemId);
+        var response = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Problem published")
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PutMapping("/{problemId}")
+    public ResponseEntity<?> updateProblem(@PathVariable Integer problemId,
+                                           @RequestBody ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
+        problemService.updateProblem(problemId, problemUpdateRequest);
+        var response = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Problem updated")
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{problemId}")
+    public ResponseEntity<?> getProblem(@PathVariable Integer problemId) {
+        var response = problemService.getProblem(problemId);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Problem found")
+                .metadata(response)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @DeleteMapping("/{problemId}")
+    public ResponseEntity<?> deleteProblem(@PathVariable("problemId") Integer problemId) {
+        problemService.deleteProblem(problemId);
+        var response = ApiResponse.builder()
+                .status(HttpStatus.NO_CONTENT.name())
+                .message("Problem deleted")
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
 }
