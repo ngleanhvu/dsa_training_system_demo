@@ -77,6 +77,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         problemDocumentRepo.save(problemDocument);
     }
 
+    @TransactionalEventListener
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void updateAcceptRate(String json) throws JsonProcessingException {
         ProblemDocumentUpdateAcceptRateRequest problemDocumentUpdateAcceptRateRequest = objectMapper.readValue(json, ProblemDocumentUpdateAcceptRateRequest.class);
@@ -85,6 +86,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                 problemDocumentUpdateAcceptRateRequest.getAcceptRate());
     }
 
+    @TransactionalEventListener
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void deleteProblemDocument(String json) throws JsonProcessingException {
         Integer problemId = objectMapper.readValue(json, Integer.class);
@@ -92,6 +94,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         problemDocumentRepoImpl.deleteByProblemId(problemId);
     }
 
+    @TransactionalEventListener
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void updateTopic(String json) throws JsonProcessingException {
         ProblemDocumentUpdateRequest problemDocumentUpdateRequest = objectMapper.readValue(json, ProblemDocumentUpdateRequest.class);

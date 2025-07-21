@@ -23,4 +23,5 @@ public interface ContestProblemRepo extends JpaRepository<ContestProblem, Intege
 
     @Query("SELECT cp FROM ContestProblem cp WHERE cp.problem.problemId = :problemId")
     Optional<ContestProblem> findByProblemId(@Param("problemId") Integer problemId);
+
 }
