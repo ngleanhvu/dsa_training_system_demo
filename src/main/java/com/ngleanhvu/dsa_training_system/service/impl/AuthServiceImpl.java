@@ -11,6 +11,7 @@ import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
+import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.redis.EmailConfirmTokenService;
 import com.ngleanhvu.dsa_training_system.redis.RedisKey;
@@ -73,14 +74,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(LoginRequest loginRequest) throws InvalidCredentialsException {
         AuthLocal authLocal = authLocalRepo.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Auth local","email",loginRequest.getEmail()));
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản","email",loginRequest.getEmail()));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), authLocal.getPasswordHash())) {
-            throw new InvalidCredentialsException("Invalid credentials");
+            throw new InvalidCredentialsException("Mật khẩu không chính xác");
         }
 
         User user = userRepo.findById(authLocal.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User","id",authLocal.getUserId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng","id",authLocal.getUserId()));
 
         return generateLoginResponse(user);
     }
@@ -256,6 +257,25 @@ public class AuthServiceImpl implements AuthService {
                         .providerUserId(String.valueOf(userInfo.get("id")))
                         .status(1)
                         .build()));
+
+        return generateLoginResponse(user);
+    }
+
+    @Override
+    public LoginResponse loginWithAdminAccount(LoginRequest loginRequest) throws InvalidCredentialsException {
+        AuthLocal authLocal = authLocalRepo.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản","email",loginRequest.getEmail()));
+
+        if (!passwordEncoder.matches(loginRequest.getPassword(), authLocal.getPasswordHash())) {
+            throw new InvalidCredentialsException("Mật khẩu không chính xác");
+        }
+
+        User user = userRepo.findById(authLocal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng","id",authLocal.getUserId()));
+
+        if (user.getRole() != UserRole.ADMIN) {
+            throw new PermissionException("Người dùng", user.getEmail());
+        }
 
         return generateLoginResponse(user);
     }

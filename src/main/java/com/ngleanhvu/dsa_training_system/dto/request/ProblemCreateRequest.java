@@ -10,7 +10,7 @@ public class ProblemCreateRequest {
     private int difficultId;
     private List<Integer> topicIds;
     private String description;
-    private List<String> constraints;
+    private String constraints;
     private List<String> hints;
     private int timeLimit;
     private int memoryLimit;

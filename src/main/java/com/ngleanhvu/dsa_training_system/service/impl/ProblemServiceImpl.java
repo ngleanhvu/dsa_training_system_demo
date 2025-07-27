@@ -12,6 +12,7 @@ import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.ProblemSpecification;
 import com.ngleanhvu.dsa_training_system.service.ProblemService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,7 +78,6 @@ public class ProblemServiceImpl implements ProblemService {
 
         problemTopicRepo.saveAll(problemTopics);
 
-        String constraintsJson = objectMapper.writeValueAsString(!request.getConstraints().isEmpty() ? request.getConstraints() : Collections.emptyList());
         String hintsJson = objectMapper.writeValueAsString(request.getHints() != null && !request.getHints().isEmpty() ? request.getHints() : Collections.emptyList());
 
         ProblemDetail problemDetail = ProblemDetail.builder()
@@ -85,7 +85,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .memoryLimit(request.getMemoryLimit())
                 .timeLimit(request.getTimeLimit())
                 .description(request.getDescription())
-                .constraints(constraintsJson)
+                .constraints(AppUtil.sanitize(request.getConstraints()))
                 .hints(hintsJson)
                 .status(1)
                 .build();

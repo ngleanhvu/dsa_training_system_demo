@@ -22,7 +22,7 @@ public class ProblemDetail {
     @Lob
     private String description;
 
-    @Column(columnDefinition = "json")
+    @Column(columnDefinition = "text")
     private String constraints;
 
     @Column(columnDefinition = "json")

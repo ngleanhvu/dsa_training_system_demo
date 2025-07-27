@@ -1,14 +1,15 @@
 package com.ngleanhvu.dsa_training_system.exception;
 
-import lombok.AllArgsConstructor;
+import com.ngleanhvu.dsa_training_system.exception.FieldErrorDetail;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
-@AllArgsConstructor @NoArgsConstructor @Builder
+@Builder
 public class ErrorResponse {
     private int code;
     private String message;
-    private String details;
+    private List<FieldErrorDetail> errors;
 }

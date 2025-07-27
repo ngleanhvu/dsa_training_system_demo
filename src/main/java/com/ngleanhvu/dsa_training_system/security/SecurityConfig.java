@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.security.interfaces.RSAPublicKey;
 import java.util.List;
@@ -39,11 +41,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
+                .cors()
+                .and()
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/login/admin").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/google/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/github/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search").permitAll()
@@ -83,6 +88,22 @@ public class SecurityConfig {
         decoder.setJwtValidator(JwtValidators.createDefault());
 
         return decoder;
+    }
+
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:5173")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // các phương thức được phép
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
+            }
+        };
     }
 
 }

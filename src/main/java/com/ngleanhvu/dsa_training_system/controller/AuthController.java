@@ -9,7 +9,9 @@ import com.ngleanhvu.dsa_training_system.dto.request.RefreshRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
+import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.InvalidCredentialsException;
@@ -42,10 +44,21 @@ public class AuthController {
     private String githubClientSecret;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws InvalidCredentialsException {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) throws InvalidCredentialsException {
         var response = authService.login(loginRequest);
         var apiResponse = ApiResponse.builder()
-                .message("Login success")
+                .message("Đăng nhập thành công!")
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PostMapping("/login/admin")
+    public ResponseEntity<?> loginAdmin(@Valid @RequestBody LoginRequest loginRequest) throws InvalidCredentialsException, PermissionException {
+        var response = authService.loginWithAdminAccount(loginRequest);
+        var apiResponse = ApiResponse.builder()
+                .message("Đăng nhập thành công!")
                 .metadata(response)
                 .status(HttpStatus.OK.name())
                 .build();
