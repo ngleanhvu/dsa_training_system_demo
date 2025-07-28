@@ -4,8 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.*;
-import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
-import com.ngleanhvu.dsa_training_system.dto.response.ProblemResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.*;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
@@ -111,7 +110,7 @@ public class ProblemServiceImpl implements ProblemService {
     }
 
     @Override
-    public List<ProblemResponse> getProblems(ProblemSearchAdminRequest searchRequest, PagingSearch pagingSearch) {
+    public ListProblemResponse getProblems(ProblemSearchAdminRequest searchRequest, PagingSearch pagingSearch) {
         Specification<Problem> spec =
                 ProblemSpecification.hasTitle(searchRequest.getTitle())
                         .and(ProblemSpecification.hasDifficulty(searchRequest.getDifficultyId()))
@@ -125,19 +124,38 @@ public class ProblemServiceImpl implements ProblemService {
                 .map(problem -> ProblemResponse.builder()
                         .problemId(problem.getProblemId())
                         .title(problem.getTitle())
-                        .difficulty(problem.getDifficulty())
+                        .difficulty(DifficultResponse.builder()
+                                .difficultId(problem.getDifficulty().getDifficultyId())
+                                .difficultName(problem.getDifficulty().getName())
+                                .build())
                         .topics(problem.getProblemTopics() != null
                                 ? problem.getProblemTopics().stream()
-                                .map(ProblemTopic::getTopic)
+                                .map(p -> TopicResponse.builder()
+                                        .topicId(p.getTopic().getTopicId())
+                                        .topicName(p.getTopic().getName())
+                                        .build())
                                 .filter(Objects::nonNull)
                                 .toList()
                                 : List.of())
+                        .isPublic(problem.isPublic())
                         .build())
                 .toList();
 
         log.debug("Fetched {} problem(s) for admin search", responses.size());
 
-        return responses;
+        int page = problems.getNumber() + 1;
+        int totalPages = problems.getTotalPages();
+        int totalElements = problems.getNumberOfElements();
+
+        ListProblemResponse listProblemResponse =ListProblemResponse.builder()
+                .problems(responses)
+                .page(page)
+                .totalElements(totalElements)
+                .totalPage(totalPages)
+                .build();
+        log.debug("ListProblemResponse: {}",listProblemResponse);
+        return listProblemResponse;
+
     }
 
 
@@ -252,9 +270,12 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
-        List<Topic> topics = problem.getProblemTopics() != null
+        List<TopicResponse> topics = problem.getProblemTopics() != null
                 ? problem.getProblemTopics().stream()
-                .map(ProblemTopic::getTopic)
+                .map(p -> TopicResponse.builder()
+                        .topicId(p.getTopic().getTopicId())
+                        .topicName(p.getTopic().getName())
+                        .build())
                 .filter(Objects::nonNull)
                 .toList()
                 : List.of();
@@ -262,7 +283,11 @@ public class ProblemServiceImpl implements ProblemService {
         ProblemResponse response = ProblemResponse.builder()
                 .problemId(problem.getProblemId())
                 .title(problem.getTitle())
-                .difficulty(problem.getDifficulty())
+                .difficulty(DifficultResponse.builder()
+                        .difficultId(problem.getDifficulty().getDifficultyId())
+                        .difficultName(problem.getDifficulty().getName())
+                        .build())
+                .isPublic(problem.isPublic())
                 .topics(topics)
                 .build();
 

@@ -12,4 +12,12 @@ public class RedisKey {
     public static String generateEmailConfirmKey(String token) {
         return "email_confirm:" + token;
     }
+
+    public static String generateDifficultiesKey() {
+        return "difficulties";
+    }
+
+    public static String generateTopicKey() {
+        return "topics";
+    }
 }

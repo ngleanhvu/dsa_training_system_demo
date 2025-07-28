@@ -40,6 +40,9 @@ spring:
     connection-timeout: 5s
     socket-timeout: 60s
 
+logging:
+  level:
+    org.apache.tomcat.util.http.parser.Cookie: DEBUG
 
 github:
   client_id: Ov23li0lgHoq3nu5EIX0
@@ -62,12 +65,12 @@ piston:
   port: ${PISTON_PORT}
 
 page:
-  size: 20
+  size: 6
 
 jwt:
   expiration:
-    access_token: 600
-    refresh_token: 604800
+    access_token: 1800      # 30 phút = 1800 giây
+    refresh_token: 604800   # 7 ngày = 604800 giây (như bạn đang để)
 
 server:
   port: 8000

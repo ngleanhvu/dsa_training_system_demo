@@ -2,6 +2,7 @@ package com.ngleanhvu.dsa_training_system.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemCreateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ProblemSearchAdminRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.SortRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
@@ -42,7 +43,7 @@ public class ProblemController {
 
     @PostMapping("/search")
     public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
-                                           @RequestParam(required = false, defaultValue = "id") String sortBy,
+                                           @RequestParam(required = false, defaultValue = "problemId") String sortBy,
                                            @RequestParam(required = false, defaultValue = "asc") String sortDirection,
                                            @RequestParam(required = false, defaultValue = "0") Integer page) {
 
@@ -51,13 +52,38 @@ public class ProblemController {
         PagingSearch pagingSearch = new PagingSearch();
 
         pagingSearch.setSize(pageSize);
-        pagingSearch.setPage(page);
+        pagingSearch.setPage(Math.max(page, 0));
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDirection);
 
         log.info("Paging search: {}", pagingSearch);
 
         var response = problemSearchService.search(problemSearchRequest, pagingSearch);
+        log.info("Search problem response: {}", response);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Search problem success")
+                .metadata(response)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PostMapping("/search/admin")
+    public ResponseEntity<?> searchProblemAdmin(@RequestBody ProblemSearchAdminRequest problemSearchRequest,
+                                                @RequestParam(required = false, defaultValue = "problemId") String sortBy,
+                                                @RequestParam(required = false, defaultValue = "asc") String sortDirection,
+                                                @RequestParam(required = false, defaultValue = "0") Integer page) {
+        log.info("Searching problem admin: {}", problemSearchRequest);
+        PagingSearch pagingSearch = new PagingSearch();
+
+        pagingSearch.setSize(pageSize);
+        pagingSearch.setPage(Math.max(page - 1, 0));
+        pagingSearch.setSortBy(sortBy);
+        pagingSearch.setDirection(sortDirection);
+
+        log.info("Paging search: {}", pagingSearch);
+        var response = problemService.getProblems(problemSearchRequest, pagingSearch);
         log.info("Search problem response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())

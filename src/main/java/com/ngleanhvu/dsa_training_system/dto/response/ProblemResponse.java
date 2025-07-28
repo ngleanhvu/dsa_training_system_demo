@@ -12,6 +12,7 @@ import java.util.List;
 public class ProblemResponse {
     private Integer problemId;
     private String title;
-    private Difficulty difficulty;
-    private List<Topic> topics;
+    private DifficultResponse difficulty;
+    private boolean isPublic;
+    private List<TopicResponse> topics;
 }

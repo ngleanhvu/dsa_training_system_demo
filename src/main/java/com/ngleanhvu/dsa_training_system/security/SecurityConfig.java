@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/contests/search**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/difficulties").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/topics").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/problems/search**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/comments/**").permitAll()
                         .anyRequest().authenticated()
@@ -71,7 +73,7 @@ public class SecurityConfig {
 
         jwtConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
             String role = jwt.getClaimAsString("role");
-            log.info("Role: {}", role);
+            log.debug("Role: {}", role);
             if (role == null) return List.of();
             String authority = "ROLE_" + role.toUpperCase();
             return List.of(new SimpleGrantedAuthority(authority));

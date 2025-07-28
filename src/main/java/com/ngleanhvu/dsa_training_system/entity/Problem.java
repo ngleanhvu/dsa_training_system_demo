@@ -23,7 +23,7 @@ public class Problem {
     @Column(length = 200)
     private String slug;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "difficulty_id", nullable = false)
     private Difficulty difficulty;
 
