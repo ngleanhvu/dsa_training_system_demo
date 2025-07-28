@@ -9,6 +9,7 @@ import com.ngleanhvu.dsa_training_system.dto.request.EmailRecord;
 import com.ngleanhvu.dsa_training_system.dto.request.LoginRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.UserResponse;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
@@ -83,7 +84,15 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findById(authLocal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Người dùng","id",authLocal.getUserId()));
 
-        return generateLoginResponse(user);
+        LoginResponse loginResponse =  generateLoginResponse(user);
+
+        loginResponse.setUser(UserResponse.builder()
+                .displayName(user.getDisplayName())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .build());
+
+        return loginResponse;
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
@@ -277,7 +286,15 @@ public class AuthServiceImpl implements AuthService {
             throw new PermissionException("Người dùng", user.getEmail());
         }
 
-        return generateLoginResponse(user);
+        LoginResponse loginResponse =  generateLoginResponse(user);
+
+        loginResponse.setUser(UserResponse.builder()
+                .displayName(user.getDisplayName())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .build());
+
+        return loginResponse;
     }
 
     private LoginResponse generateLoginResponse(User user) {
