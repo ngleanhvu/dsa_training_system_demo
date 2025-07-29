@@ -16,5 +16,6 @@ public class ProblemDocumentResponse {
     private String difficultyName;
     private List<Integer> topicIds;
     private LocalDate createdAt;
+    private boolean isPublic;
     private boolean isAccepted;
 }

@@ -1,6 +1,7 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.*;
@@ -89,7 +90,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .status(1)
                 .build();
 
-        if (request.isPublic()) {
+
             ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
                     .problemId(problem.getProblemId())
                     .title(request.getTitle())
@@ -104,7 +105,6 @@ public class ProblemServiceImpl implements ProblemService {
             String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
             log.info("problem create document request: {}", problemDocumentJson);
             kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
-        }
 
         problemDetailRepo.save(problemDetail);
     }
@@ -162,7 +162,7 @@ public class ProblemServiceImpl implements ProblemService {
     @Transactional(propagation = Propagation.REQUIRED)
     @Override
     public void updateProblem(Integer problemId, ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
-
+        log.info("problem update request: {}", problemUpdateRequest);
         Problem existingProblem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
@@ -226,11 +226,7 @@ public class ProblemServiceImpl implements ProblemService {
             }
         }
 
-        String constraintsJson = objectMapper.writeValueAsString(
-                (problemUpdateRequest.getConstraints() != null && !problemUpdateRequest.getConstraints().isEmpty())
-                        ? problemUpdateRequest.getConstraints()
-                        : existingProblemDetail.getConstraints()
-        );
+        String constraints = problemUpdateRequest.getConstraints();
 
         String hintsJson = objectMapper.writeValueAsString(
                 problemUpdateRequest.getHints() != null
@@ -238,7 +234,8 @@ public class ProblemServiceImpl implements ProblemService {
                         : existingProblemDetail.getHints()
         );
 
-        existingProblemDetail.setConstraints(constraintsJson);
+
+        existingProblemDetail.setConstraints(constraints);
         existingProblemDetail.setHints(hintsJson);
 
         if (problemUpdateRequest.getDescription() != null) {
@@ -253,25 +250,33 @@ public class ProblemServiceImpl implements ProblemService {
             existingProblemDetail.setTimeLimit(problemUpdateRequest.getTimeLimit());
         }
 
-        String problemDocumentUpdateJson = objectMapper.writeValueAsString(problemDocumentUpdateRequest);
-        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, problemDocumentUpdateJson);
+
+            String problemDocumentUpdateJson = objectMapper.writeValueAsString(problemDocumentUpdateRequest);
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, problemDocumentUpdateJson);
+
 
         problemRepo.save(existingProblem);
         problemDetailRepo.save(existingProblemDetail);
     }
 
     @Override
-    public void deleteProblem(Integer problemId) {
-        problemRepo.deleteById(problemId);
+    public void deleteProblem(Integer problemId) throws JsonProcessingException {
+       Problem problem =  problemRepo.findById(problemId)
+               .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
+
+           String problemIdJson = objectMapper.writeValueAsString(problemId);
+           kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, problemIdJson);
+
+       problemRepo.delete(problem);
     }
 
     @Override
-    public ProblemResponse getProblem(Integer problemId) throws JsonProcessingException {
-        Problem problem = problemRepo.findById(problemId)
-                .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
+    public ProblemDetailResponse getProblem(Integer problemId) throws JsonProcessingException {
+        ProblemDetail problemDetail = problemDetailRepo.findByProblemId(problemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Problem detail", "problem id", String.valueOf(problemId)));
 
-        List<TopicResponse> topics = problem.getProblemTopics() != null
-                ? problem.getProblemTopics().stream()
+        List<TopicResponse> topics = problemDetail.getProblem().getProblemTopics() != null
+                ? problemDetail.getProblem().getProblemTopics().stream()
                 .map(p -> TopicResponse.builder()
                         .topicId(p.getTopic().getTopicId())
                         .topicName(p.getTopic().getName())
@@ -280,22 +285,24 @@ public class ProblemServiceImpl implements ProblemService {
                 .toList()
                 : List.of();
 
-        ProblemResponse response = ProblemResponse.builder()
-                .problemId(problem.getProblemId())
-                .title(problem.getTitle())
-                .difficulty(DifficultResponse.builder()
-                        .difficultId(problem.getDifficulty().getDifficultyId())
-                        .difficultName(problem.getDifficulty().getName())
+        List<String> hints = objectMapper.readValue(problemDetail.getHints(), new TypeReference<>() {});
+
+        ProblemDetailResponse response = ProblemDetailResponse.builder()
+                .problemId(problemDetail.getProblem().getProblemId())
+                .title(problemDetail.getProblem().getTitle())
+                .difficult(DifficultResponse.builder()
+                        .difficultId(problemDetail.getProblem().getDifficulty().getDifficultyId())
+                        .difficultName(problemDetail.getProblem().getDifficulty().getName())
                         .build())
-                .isPublic(problem.isPublic())
                 .topics(topics)
+                .description(problemDetail.getDescription())
+                .constraints(problemDetail.getConstraints())
+                .hints(hints)
+                .memoryLimit(problemDetail.getMemoryLimit())
+                .timeLimit(problemDetail.getTimeLimit())
                 .build();
 
         log.debug("Fetched problem response: {}", response);
-
-        String problemIdJson = objectMapper.writeValueAsString(problem);
-
-        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, problemIdJson);
 
         return response;
     }
@@ -309,22 +316,24 @@ public class ProblemServiceImpl implements ProblemService {
         if (!problem.isPublic()) {
             problem.setPublic(true);
             problem.setPublishAt(LocalDateTime.now());
-            ProblemDocumentCreateRequest problemDocumentCreateRequest = ProblemDocumentCreateRequest.builder()
-                    .problemId(problem.getProblemId())
-                    .title(problem.getTitle())
-                    .url(getSlugPrefix()+problem.getProblemId())
-                    .createdAt(problem.getCreatedAt().toLocalDate())
-                    .acceptanceRate(0)
-                    .difficultyId(problem.getDifficulty().getDifficultyId())
-                    .difficultyName(problem.getDifficulty().getName())
-                    .topicIds(problem.getProblemTopics().stream().map(p -> p.getTopic().getTopicId()).collect(Collectors.toList()))
-                    .build();
-            log.info("problem create document request: {}", problemDocumentCreateRequest);
-            String problemDocumentJson = objectMapper.writeValueAsString(problemDocumentCreateRequest);
-            log.info("problem create document request: {}", problemDocumentJson);
-            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_CREATE_TOPIC, problemDocumentJson);
+
+            ToggleRequest toggleRequest = new ToggleRequest();
+            toggleRequest.setProblemId(problemId);
+            toggleRequest.setPublic(true);
+
+            String toggleJson = objectMapper.writeValueAsString(toggleRequest);
+            log.info("problem toggle request: {}", toggleJson);
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_TOGGLE_TOPIC, toggleJson);
         } else {
             problem.setPublic(false);
+
+            ToggleRequest toggleRequest = new ToggleRequest();
+            toggleRequest.setProblemId(problemId);
+            toggleRequest.setPublic(false);
+
+            String toggleJson = objectMapper.writeValueAsString(toggleRequest);
+
+            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_TOGGLE_TOPIC, toggleJson);
         }
 
         problemRepo.save(problem);

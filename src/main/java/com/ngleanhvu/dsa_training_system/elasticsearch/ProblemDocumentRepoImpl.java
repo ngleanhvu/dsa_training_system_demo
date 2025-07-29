@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ToggleRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,13 +42,17 @@ public class ProblemDocumentRepoImpl  {
 
         Query query;
         if (isEmpty(searchRequest)) {
-            query = Query.of(q -> q.matchAll(ma -> ma));
+            query = Query.of(q -> q.bool(b -> b
+                    .filter(f -> f.term(t -> t.field("isPublic").value(true)))
+            ));
             log.info("query: {}", query);
         } else {
             query = Query.of(q -> q.bool(b -> {
                 if (searchRequest.getTitle() != null && !searchRequest.getTitle().isEmpty()) {
                     b.must(m -> m.match(t -> t.field("title").query(FieldValue.of(searchRequest.getTitle()))));
                 }
+
+                b.must(m -> m.term(t -> t.field("isPublic").value(true)));
 
                 applyFilter(searchRequest.getDifficultyIds(), "difficultyId", isAll, b);
                 applyFilter(searchRequest.getTopicIds(), "topic", isAll, b);
@@ -110,6 +115,23 @@ public class ProblemDocumentRepoImpl  {
             log.info("Updated document with problemId {}", request.getProblemId());
         } catch (IOException e) {
             log.error("Failed to update document with problemId {}", request.getProblemId(), e);
+        }
+    }
+
+    public void toggleProblemById(ToggleRequest toggleRequest) {
+        log.info("toggleProblemById: {}", toggleRequest);
+        try {
+            elasticsearchClient.update(u -> u
+                            .index(INDEX_NAME)
+                            .id(toggleRequest.getProblemId().toString())
+                            .doc(Map.of(
+                                    "isPublic", toggleRequest.isPublic()
+                            )),
+                    ProblemDocument.class
+            );
+            log.info("Updated document with problemId {}", toggleRequest.getProblemId());
+        } catch (IOException e) {
+            log.error("Failed to update document with problemId {}", toggleRequest.getProblemId(), e);
         }
     }
 

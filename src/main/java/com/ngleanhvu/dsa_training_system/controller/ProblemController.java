@@ -52,7 +52,7 @@ public class ProblemController {
         PagingSearch pagingSearch = new PagingSearch();
 
         pagingSearch.setSize(pageSize);
-        pagingSearch.setPage(Math.max(page, 0));
+        pagingSearch.setPage(Math.max(page-1, 0));
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDirection);
 
@@ -94,7 +94,7 @@ public class ProblemController {
     }
 
     @PreAuthorize("hasAnyRole('ADMIN')")
-    @PostMapping("/{problemId}/toggle-publish")
+    @PatchMapping("/{problemId}/toggle-publish")
     public ResponseEntity<?> togglePublishProblem(@PathVariable("problemId") Integer problemId) throws JsonProcessingException {
         problemService.togglePublishProblem(problemId);
         var response = ApiResponse.builder()
@@ -106,7 +106,7 @@ public class ProblemController {
 
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PutMapping("/{problemId}")
-    public ResponseEntity<?> updateProblem(@PathVariable Integer problemId,
+    public ResponseEntity<?> updateProblem(@PathVariable("problemId") Integer problemId,
                                            @RequestBody ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
         problemService.updateProblem(problemId, problemUpdateRequest);
         var response = ApiResponse.builder()
@@ -129,7 +129,7 @@ public class ProblemController {
 
     @PreAuthorize("hasAnyRole('ADMIN')")
     @DeleteMapping("/{problemId}")
-    public ResponseEntity<?> deleteProblem(@PathVariable("problemId") Integer problemId) {
+    public ResponseEntity<?> deleteProblem(@PathVariable("problemId") Integer problemId) throws JsonProcessingException {
         problemService.deleteProblem(problemId);
         var response = ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.name())

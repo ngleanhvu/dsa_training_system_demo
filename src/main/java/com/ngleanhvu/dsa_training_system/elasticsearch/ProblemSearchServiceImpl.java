@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateAcceptRateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.ToggleRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.dto.response.ProblemDocumentResponse;
 import com.ngleanhvu.dsa_training_system.repo.SubmissionRepo;
@@ -50,6 +51,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                         .createdAt(p.getCreatedAt())
                         .difficultyId(p.getDifficultyId())
                         .difficultyName(p.getDifficultyName())
+                        .isPublic(p.isPublic())
                         .isAccepted(problemSolvedIdsSet.contains(p.getId()))
                         .build()
                 )
@@ -92,6 +94,14 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         Integer problemId = objectMapper.readValue(json, Integer.class);
         log.info("problem delete document request: {}", problemId);
         problemDocumentRepoImpl.deleteByProblemId(problemId);
+    }
+
+    @TransactionalEventListener
+    @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_TOGGLE_TOPIC, groupId = KafkaConst.GROUP_ID)
+    public void toggleProblemDocument(String json) throws JsonProcessingException {
+        ToggleRequest toggleRequest = objectMapper.readValue(json, ToggleRequest.class);
+        log.info("problem toggle document request: {}", toggleRequest);
+        problemDocumentRepoImpl.toggleProblemById(toggleRequest);
     }
 
     @TransactionalEventListener

@@ -43,6 +43,9 @@ public class ProblemDocument {
     @Field(type = FieldType.Double)
     private double acceptanceRate;
 
+    @Field(type = FieldType.Boolean)
+    private boolean isPublic;
+
     @Field(type = FieldType.Date, format = DateFormat.date)
     private LocalDate createdAt;
 }
