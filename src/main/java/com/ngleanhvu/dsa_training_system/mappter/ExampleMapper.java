@@ -23,9 +23,11 @@ public class ExampleMapper {
         }
 
         return ExampleResponse.builder()
+                .exampleId(example.getExampleId())
                 .input(example.getInput())
                 .output(example.getOutput())
                 .explanation(example.getExplantation())
+                .problemId(example.getProblem().getProblemId())
                 .images(imagesList)
                 .build();
     }

@@ -8,8 +8,10 @@ import java.util.List;
 @Data
 @Builder
 public class ExampleResponse {
+    private Integer exampleId;
     private String input;
     private String output;
     private String explanation;
     private List<String> images;
+    private Integer problemId;
 }

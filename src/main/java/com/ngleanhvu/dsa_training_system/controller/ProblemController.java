@@ -107,7 +107,7 @@ public class ProblemController {
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PutMapping("/{problemId}")
     public ResponseEntity<?> updateProblem(@PathVariable("problemId") Integer problemId,
-                                           @RequestBody ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
+                                           @Valid @RequestBody ProblemUpdateRequest problemUpdateRequest) throws JsonProcessingException {
         problemService.updateProblem(problemId, problemUpdateRequest);
         var response = ApiResponse.builder()
                 .status(HttpStatus.OK.name())

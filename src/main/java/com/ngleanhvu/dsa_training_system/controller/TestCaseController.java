@@ -59,7 +59,7 @@ public class TestCaseController {
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PutMapping("/{testCaseId}")
     public ResponseEntity<?> updateTestCase(@PathVariable("testCaseId") Integer testCaseId,
-                                            @RequestBody TestCaseUpdateRequest testCaseUpdateRequest) {
+                                            @Valid @RequestBody TestCaseUpdateRequest testCaseUpdateRequest) {
         testCaseService.updateTestCase(testCaseId, testCaseUpdateRequest);
         var response = ApiResponse.builder()
                 .message("Updated test case success")
@@ -91,5 +91,38 @@ public class TestCaseController {
                 .metadata(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @GetMapping("/{testCaseId}")
+    public ResponseEntity<?> getTestCaseById(@PathVariable("testCaseId") Integer testCaseId) {
+        var response = testCaseService.getTestCaseById(testCaseId);
+        var apiResponse = ApiResponse.builder()
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .message("Get test case success")
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @GetMapping
+    public ResponseEntity<?> getTestCases(@RequestParam(required = false, defaultValue = "0") Integer problemId,
+                                          @RequestParam(required = false, defaultValue = "testCaseId") String sortBy,
+                                          @RequestParam(required = false, defaultValue = "asc") String sortDirection,
+                                          @RequestParam(required = false, defaultValue = "1") Integer page,
+                                          @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(sortBy);
+        pagingSearch.setPage(Math.max(0, page - 1));
+        pagingSearch.setDirection(sortDirection);
+        pagingSearch.setSize(pageSize);
+        var response = testCaseService.getAllTestCases(problemId, pagingSearch);
+        var apiResponse = ApiResponse.builder()
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .message("Get test cases success")
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 }
