@@ -56,6 +56,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/contests/search**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/difficulties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/topics").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/problems/search**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/comments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/examples**").permitAll()

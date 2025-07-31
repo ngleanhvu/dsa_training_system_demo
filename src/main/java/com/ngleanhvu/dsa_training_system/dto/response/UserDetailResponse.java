@@ -14,6 +14,7 @@ public class UserDetailResponse {
     private String lastName;
     private LocalDate dateOfBirth;
     private UserDetails.Gender gender;
+    private String role;
     private String phoneNumber;
     private String address;
     private String linkedinUrl;

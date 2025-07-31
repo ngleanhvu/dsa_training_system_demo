@@ -28,8 +28,9 @@ public class ExampleController {
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping(value = "/problems/{problemId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<?> postExample(@PathVariable("problemId") int problemId,
-                                         @Valid @ModelAttribute ExampleCreateRequest requests) throws JsonProcessingException {
-        exampleService.createExample(requests, problemId);
+                                         @Valid @ModelAttribute ExampleCreateRequest requests,
+                                         @RequestPart(value = "files", required = false) List<MultipartFile> files)  throws JsonProcessingException {
+        exampleService.createExample(requests, problemId, files);
         var response = ApiResponse.builder()
                 .message("Create success examples for problem with id " + problemId)
                 .status(HttpStatus.CREATED.name())

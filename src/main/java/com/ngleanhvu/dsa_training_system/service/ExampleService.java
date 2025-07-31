@@ -15,8 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface ExampleService {
-    Example createExample(ExampleCreateRequest request, Problem problem) throws JsonProcessingException;
-    void createExample(ExampleCreateRequest requests, int problemId) throws JsonProcessingException;
+    Example createExample(ExampleCreateRequest request, Problem problem, List<MultipartFile> files) throws JsonProcessingException;
+    void createExample(ExampleCreateRequest requests, int problemId, List<MultipartFile> files) throws JsonProcessingException;
     ListExampleResponse getExamples(Integer problemId, PagingSearch pagingSearch);
     void updateExample(Integer exampleId, ExampleUpdateRequest request);
     void deleteExample(Integer exampleId);

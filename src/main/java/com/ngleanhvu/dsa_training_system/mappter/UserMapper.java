@@ -3,6 +3,7 @@ package com.ngleanhvu.dsa_training_system.mappter;
 import com.ngleanhvu.dsa_training_system.dto.response.UserDetailResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.UserResponse;
 import com.ngleanhvu.dsa_training_system.entity.User;
+import com.ngleanhvu.dsa_training_system.entity.UserDetails;
 
 public class UserMapper {
     public static UserResponse toDto(User user) {
@@ -10,10 +11,25 @@ public class UserMapper {
                 .email(user.getEmail())
                 .displayName(user.getDisplayName())
                 .avatar(user.getAvatar())
+                .role(user.getRole().name())
                 .build();
     }
 
     public static UserDetailResponse toDetailDto(User user, UserResponse userResponse) {
+        if (user.getUserDetails() == null) {
+            return UserDetailResponse.builder()
+                    .user(userResponse)
+                    .dateOfBirth(null)
+                    .address("")
+                    .firstName("")
+                    .lastName("")
+                    .gender(UserDetails.Gender.MALE)
+                    .phoneNumber("")
+                    .githubUrl("")
+                    .linkedinUrl("")
+                    .build();
+        }
+
         return UserDetailResponse.builder()
                 .user(userResponse)
                 .dateOfBirth(user.getUserDetails().getDateOfBirth())
@@ -26,4 +42,5 @@ public class UserMapper {
                 .linkedinUrl(user.getUserDetails().getLinkedinUrl())
                 .build();
     }
+
 }

@@ -47,39 +47,39 @@ public class ExampleServiceImpl implements ExampleService {
 
     @Transactional
     @Override
-    public Example createExample(ExampleCreateRequest request, Problem problem) throws JsonProcessingException {
+    public Example createExample(ExampleCreateRequest request, Problem problem, List<MultipartFile> files) throws JsonProcessingException {
 
-        List<MultipartFile> files = request.getFiles();
+        List<String> imageUrls = new ArrayList<>();
 
-        List<CompletableFuture<String>> futures = files.stream()
-                .map(file -> CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return s3Service.upload(file);
-                    } catch (IOException e) {
-                        log.error("Error uploading file: {}", e.getMessage());
-                        return null;
-                    }
-                })
-                )
-                .toList();
+        if (files != null && !files.isEmpty()) {
+            List<CompletableFuture<String>> futures = files.stream()
+                    .map(file -> CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return s3Service.upload(file);
+                        } catch (IOException e) {
+                            log.error("Error uploading file: {}", e.getMessage());
+                            return null;
+                        }
+                    })).toList();
 
-        List<String> imageUrls = futures.stream()
-                .map(future -> {
-                    try {
-                        return future.get();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.error("Upload interrupted: {}", e.getMessage());
-                        return null;
-                    } catch (ExecutionException e) {
-                        log.error("Upload failed: {}", e.getCause().getMessage());
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
+            imageUrls = futures.stream()
+                    .map(future -> {
+                        try {
+                            return future.get();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.error("Upload interrupted: {}", e.getMessage());
+                            return null;
+                        } catch (ExecutionException e) {
+                            log.error("Upload failed: {}", e.getCause().getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+        }
 
-        String imagesJson = imageUrls.isEmpty() ? "" : objectMapper.writeValueAsString(imageUrls);
+        String imagesJson = imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls);
         log.info("Upload images: {}", imagesJson);
 
         return Example.builder()
@@ -95,13 +95,13 @@ public class ExampleServiceImpl implements ExampleService {
 
     @Transactional
     @Override
-    public void createExample(ExampleCreateRequest requests, int problemId) throws JsonProcessingException {
+    public void createExample(ExampleCreateRequest requests, int problemId, List<MultipartFile> files) throws JsonProcessingException {
 
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
 
-        Example example = createExample(requests, problem);
+        Example example = createExample(requests, problem, files);
         log.info("Created example: {}", example.toString());
         exampleRepo.save(example);
     }

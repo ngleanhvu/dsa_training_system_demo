@@ -16,5 +16,4 @@ public class ExampleCreateRequest {
     @NotEmpty(message = "Vui lòng nhập output")
     private String output;
     private String explanation;
-    private List<MultipartFile> files;
 }
