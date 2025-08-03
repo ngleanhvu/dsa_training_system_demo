@@ -49,7 +49,7 @@ public class SubmissionController {
     }
 
     @PreAuthorize("hasAnyRole('ADMIN')")
-    @GetMapping
+    @PostMapping
     public ResponseEntity<?> getSubmissionsForAdmin(@RequestBody SubmissionFilterRequest submissionFilterRequest,
                                                     @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
                                                     @RequestParam(required = false, defaultValue = "1") int page,
@@ -57,7 +57,7 @@ public class SubmissionController {
                                                     @RequestParam(required = false, defaultValue = "desc") String sortDir) {
         PagingSearch pagingSearch = new PagingSearch();
         pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page);
+        pagingSearch.setPage(Math.max(0, page - 1));
         pagingSearch.setSize(size);
         pagingSearch.setDirection(sortDir);
         var responses = submissionService.getBasicSubmissionResponses(submissionFilterRequest, pagingSearch);

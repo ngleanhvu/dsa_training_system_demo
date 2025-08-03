@@ -78,6 +78,7 @@ public class AuthController {
 
     @PostMapping("refresh")
     public ResponseEntity<?> refresh(@RequestBody RefreshRequest refreshRequest) {
+        log.info("Refresh request: {}", refreshRequest);
         var response = authService.refresh(refreshRequest.getRefreshToken());
         var apiResponse = ApiResponse.builder()
                 .message("Refresh success")

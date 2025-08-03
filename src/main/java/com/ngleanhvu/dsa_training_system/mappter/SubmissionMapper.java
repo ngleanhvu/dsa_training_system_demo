@@ -10,10 +10,12 @@ public class SubmissionMapper {
                 .submissionId(s.getSubmissionId())
                 .time(s.getRuntimeMs())
                 .timestamp(s.getCreatedAt())
-                .programmingLanguage(s.getProgrammingLanguage())
+                .memory(s.getMemoryKb())
+                .programmingLanguage(s.getProgrammingLanguage().getName())
                 .message(s.getErrorMessage())
                 .status(s.getSubmissionStatus())
                 .submissionId(s.getSubmissionId())
+                .problemId(s.getProblem().getProblemId())
                 .build();
     }
 

@@ -4,10 +4,11 @@ import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.DiscussDetailResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -25,10 +26,12 @@ public class DiscussController {
     private final JwtUtil jwtUtil;
 
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
-    @PostMapping
-    public ResponseEntity<?> createDiscuss(@RequestBody DiscussCreateRequest discussCreateRequest,
+    @PostMapping("/create")
+    public ResponseEntity<?> createDiscuss(@Valid @RequestBody DiscussCreateRequest discussCreateRequest,
                                            @RequestHeader("Authorization") String authHeader) {
+        log.info("Create discuss: {}", discussCreateRequest);
         String userId = jwtUtil.getUserIdFromToken(authHeader);
+        log.info("User id: {}", userId);
         discussCreateRequest.setUserId(userId);
         discussService.createDiscuss(discussCreateRequest);
         var response = ApiResponse.builder()
@@ -45,6 +48,7 @@ public class DiscussController {
                                            @RequestParam(required = false, defaultValue = "1") int page,
                                            @RequestParam(required = false, defaultValue = "10") int size,
                                            @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        log.info("Search discusses: {}", discussFilterRequest);
         PagingSearch pagingSearch = new PagingSearch();
         pagingSearch.setPage(page > 0 ? page - 1 : 0);
         pagingSearch.setSize(size);
@@ -98,7 +102,7 @@ public class DiscussController {
 
     @GetMapping("/{discussId}")
     public ResponseEntity<?> getDiscuss(@PathVariable("discussId") Integer discussId) {
-        DiscussResponse discussResponse = discussService.getDiscussById(discussId);
+        DiscussDetailResponse discussResponse = discussService.getDiscussById(discussId);
         var response = ApiResponse.builder()
                 .message("Get discuss success")
                 .metadata(discussResponse)

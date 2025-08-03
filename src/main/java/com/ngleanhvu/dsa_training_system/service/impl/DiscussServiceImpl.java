@@ -3,7 +3,9 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussUpdateRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.DiscussDetailResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.ListDiscussResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
@@ -76,35 +78,32 @@ public class DiscussServiceImpl implements DiscussService {
     }
 
     @Override
-    public List<DiscussResponse> getDiscusses(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
+    public ListDiscussResponse getDiscusses(DiscussFilterRequest discussFilterRequest, PagingSearch pagingSearch) {
         Specification<Discuss> spec = DiscussSpecification.hasKeyword(discussFilterRequest.getKeyword())
                 .and(DiscussSpecification.hasTimestamp(discussFilterRequest.getTimestamp()))
                 .and(DiscussSpecification.hasTag(discussFilterRequest.getTagIds()));
+
         Page<Discuss> discussPage = discussRepo.findAll(spec, pagingSearch.toPageable());
-        log.debug("discussPage: {}", discussPage);
         List<DiscussResponse> discussResponses = discussPage.stream()
                 .map(DiscussMapper::toDto)
                 .toList();
-        log.debug("discussResponses: {}", discussResponses);
-        return discussResponses;
+        log.info("discussResponses: {}", discussResponses);
+        int totalPages = discussPage.getTotalPages();
+        int page = discussPage.getNumber() + 1;
+        return ListDiscussResponse.builder()
+                .discuss(discussResponses)
+                .totalPages(totalPages)
+                .page(page)
+                .build();
     }
 
 
     @Override
-    public DiscussResponse getDiscussById(Integer discussId) {
+    public DiscussDetailResponse getDiscussById(Integer discussId) {
         Discuss d = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss","id",String.valueOf(discussId)));
 
-        DiscussResponse discussResponse = DiscussResponse.builder()
-                .title(d.getTitle())
-                .content(d.getContent())
-                .createdAt(d.getCreatedAt())
-                .upVotes(d.getUpVotes())
-                .views(d.getViews())
-                .userAvatar(d.getUser().getAvatar())
-                .userEmail(d.getUser().getEmail())
-                .userDisplayName(d.getUser().getDisplayName())
-                .build();
+        DiscussDetailResponse discussResponse = DiscussMapper.toDiscussDetailResponse(d);
 
         log.info("discussResponse: {}", discussResponse);
 
@@ -157,7 +156,7 @@ public class DiscussServiceImpl implements DiscussService {
         Discuss discuss = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
 
-        if (!discuss.getUser().getUserId().equals(request.getUserId())) {
+        if (!discuss.getUser().getUserId().equals(request.getUserId()) || discuss.getUser().getRole() != UserRole.ADMIN) {
             throw new PermissionException("Discuss",String.valueOf(discussId));
         }
 

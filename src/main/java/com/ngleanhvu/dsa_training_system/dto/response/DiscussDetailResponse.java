@@ -1,18 +1,14 @@
 package com.ngleanhvu.dsa_training_system.dto.response;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class DiscussResponse {
+public class DiscussDetailResponse {
     private Integer discussId;
     private String title;
     private String content;
@@ -21,7 +17,7 @@ public class DiscussResponse {
     private int comments;
     private int views;
     private LocalDateTime createdAt;
-    private List<String> tags;
+    private List<TagResponse> tags;
 
     private String userEmail;
     private String userAvatar;

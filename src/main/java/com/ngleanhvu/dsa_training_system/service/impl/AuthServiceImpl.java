@@ -165,6 +165,8 @@ public class AuthServiceImpl implements AuthService {
         String jti = jwtUtil.getJti(refreshToken)
                 .orElseThrow(() -> new InvalidValueException("Invalid refresh token"));
 
+        log.info("Refresh token: {}", jti);
+
         if (stringRedisTemplate.hasKey(RedisKey.generateBlackListKey(jti))) {
             throw new InvalidValueException("Refresh revoked");
         }
@@ -172,10 +174,14 @@ public class AuthServiceImpl implements AuthService {
         String authId = jwtUtil.getSubject(refreshToken)
                 .orElseThrow(() -> new InvalidValueException("Invalid refresh token"));
 
+        log.info("Refresh token: {}", authId);
+
         AuthLocal authLocal = authLocalRepo.findById(authId)
                 .orElseThrow(() -> new ResourceNotFoundException("Auth local","email",authId));
 
-        return generateLoginResponse(authLocal.getUser());
+        LoginResponse loginResponse =  generateLoginResponse(authLocal.getUser());
+        log.info("Login response: {}", loginResponse);
+        return loginResponse;
     }
 
     @Override

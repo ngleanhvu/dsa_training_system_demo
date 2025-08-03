@@ -20,4 +20,8 @@ public class RedisKey {
     public static String generateTopicKey() {
         return "topics";
     }
+
+    public static String generateTagKey() {
+        return "tags";
+    }
 }

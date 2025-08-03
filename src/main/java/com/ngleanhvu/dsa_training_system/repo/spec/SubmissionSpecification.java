@@ -1,35 +1,46 @@
 package com.ngleanhvu.dsa_training_system.repo.spec;
 
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
-import com.ngleanhvu.dsa_training_system.entity.Difficulty;
-import com.ngleanhvu.dsa_training_system.entity.Problem;
 import com.ngleanhvu.dsa_training_system.entity.Submission;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class SubmissionSpecification {
 
-    public static Specification<Submission> hasProblemId(Integer problemId) {
+    public static Specification<Submission> hasProblemIdInRange(RangeRequest<Integer> problemIdRange) {
         return (root, query, cb) -> {
-            if (problemId == null) {
+            if (problemIdRange == null) return null;
+
+            if (problemIdRange.getFrom() != null && problemIdRange.getTo() != null) {
+                return cb.between(root.get("problem").get("problemId"), problemIdRange.getFrom(), problemIdRange.getTo());
+            } else if (problemIdRange.getFrom() != null) {
+                return cb.greaterThanOrEqualTo(root.get("problem").get("problemId"), problemIdRange.getFrom());
+            } else if (problemIdRange.getTo() != null) {
+                return cb.lessThanOrEqualTo(root.get("problem").get("problemId"), problemIdRange.getTo());
+            } else {
                 return null;
             }
-            return cb.equal(root.get("problem").get("problemId"), problemId);
         };
     }
 
-    public static Specification<Submission> hasSubmissionStatus(String status) {
+    public static Specification<Submission> hasSubmissionStatuses(List<String> statusList) {
         return (root, query, cb) -> {
-            if (status == null || status.trim().isEmpty()) return null;
+            if (statusList == null || statusList.isEmpty()) return null;
 
-            SubmissionStatus submissionStatus = SubmissionStatus.getSubmissionStatus(status);
-            if (submissionStatus == null) return null;
+            List<SubmissionStatus> validStatuses = statusList.stream()
+                    .map(SubmissionStatus::getSubmissionStatus)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
-            return cb.equal(root.get("submissionStatus"), submissionStatus);
+            if (validStatuses.isEmpty()) return null;
+
+            return root.get("submissionStatus").in(validStatuses);
         };
     }
 
@@ -53,12 +64,12 @@ public class SubmissionSpecification {
         };
     }
 
-    public static Specification<Submission> hasProgrammingLanguage(Integer programmingLanguageId) {
+    public static Specification<Submission> hasProgrammingLanguages(List<Integer> programmingLanguageIds) {
         return (root, query, cb) -> {
-            if (programmingLanguageId == null) {
+            if (programmingLanguageIds == null || programmingLanguageIds.isEmpty()) {
                 return null;
             }
-            return cb.equal(root.get("programmingLanguage").get("programmingLanguageId"), programmingLanguageId);
+            return root.get("programmingLanguage").get("programmingLanguageId").in(programmingLanguageIds);
         };
     }
 

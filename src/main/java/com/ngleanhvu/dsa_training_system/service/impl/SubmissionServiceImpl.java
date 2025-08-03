@@ -25,7 +25,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -327,17 +326,24 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     @Override
-    public List<BasicResultSubmissionResponse> getBasicSubmissionResponses(SubmissionFilterRequest filterRequest, PagingSearch pagingSearch) {
-        Specification<Submission> specification = SubmissionSpecification.hasProblemId(filterRequest.getProblemId())
-                .and(SubmissionSpecification.hasSubmissionStatus(filterRequest.getStatus()))
+    public ListBasicResultSubmissionResponse getBasicSubmissionResponses(SubmissionFilterRequest filterRequest, PagingSearch pagingSearch) {
+        log.info("filterRequest: {}", filterRequest);
+        Specification<Submission> specification = SubmissionSpecification.hasProblemIdInRange(filterRequest.getProblemId())
+                .and(SubmissionSpecification.hasSubmissionStatuses(filterRequest.getStatus()))
                 .and(SubmissionSpecification.hasTimeRange(filterRequest.getTimeRange()))
-                .and(SubmissionSpecification.hasProgrammingLanguage(filterRequest.getProgrammingLanguageId()));
+                .and(SubmissionSpecification.hasProgrammingLanguages(filterRequest.getProgrammingLanguageId()));
 
         Page<Submission> submissions = submissionRepo.findAll(specification, pagingSearch.toPageable());
 
+        log.info("submissions: {}", submissions.getTotalElements());
+
         if (submissions.isEmpty()) {
-            return Collections.emptyList();
+            log.info("submissions is empty");
+            return null;
         }
+
+        int page = submissions.getNumber() + 1;
+        int totalPages = submissions.getTotalPages();
 
         List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.getContent().stream()
                 .map(SubmissionMapper::toDto)
@@ -345,7 +351,11 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);
 
-        return basicResultSubmissionResponses;
+        return ListBasicResultSubmissionResponse.builder()
+                .submissions(basicResultSubmissionResponses)
+                .totalPages(totalPages)
+                .page(page)
+                .build();
     }
 
 

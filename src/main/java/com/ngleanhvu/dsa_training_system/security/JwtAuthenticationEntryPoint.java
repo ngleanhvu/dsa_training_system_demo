@@ -21,7 +21,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         log.error("Unauthorized error: {}", authException.getMessage());
         log.error(request.getHeader("Authorization"));
         response.setContentType("application/json");
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
         response.getWriter().write("{\"error\": \"Forbidden\"}");
     }
