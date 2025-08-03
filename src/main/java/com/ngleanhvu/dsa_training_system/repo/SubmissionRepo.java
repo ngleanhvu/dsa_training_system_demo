@@ -55,4 +55,14 @@ public interface SubmissionRepo extends JpaRepository<Submission, Integer>, JpaS
 """, nativeQuery = true)
     List<TopicSubmissionStat> statisticSubmissionByTopicIdAndUserEmail(@Param("email") String email);
 
+
+    @Query(value = """
+    SELECT MONTH(s.created_at) AS month, COUNT(*) AS quantity
+    FROM submissions s
+    WHERE YEAR(s.created_at) = :year
+    GROUP BY MONTH(s.created_at)
+    ORDER BY MONTH(s.created_at)
+""", nativeQuery = true)
+    List<Object[]> getSubmissionByEachYear(@Param("year") int year);
+
 }
