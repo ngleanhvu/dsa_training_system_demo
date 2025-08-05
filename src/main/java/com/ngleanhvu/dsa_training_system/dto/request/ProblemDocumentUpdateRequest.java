@@ -12,4 +12,5 @@ public class ProblemDocumentUpdateRequest {
     private String difficultyName;
     private Integer difficultyId;
     private Set<Integer> topicIds;
+    private Set<String> topicTitles;
 }

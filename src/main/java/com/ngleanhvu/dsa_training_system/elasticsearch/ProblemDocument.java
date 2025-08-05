@@ -40,6 +40,9 @@ public class ProblemDocument {
     @Field(type = FieldType.Integer)
     private List<Integer> topic;
 
+    @Field(type = FieldType.Keyword)
+    private List<String> topicTitle;
+
     @Field(type = FieldType.Double)
     private double acceptanceRate;
 

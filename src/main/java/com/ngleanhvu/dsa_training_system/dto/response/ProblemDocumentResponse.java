@@ -11,10 +11,11 @@ import java.util.List;
 public class ProblemDocumentResponse {
     private Integer id;
     private String title;
-    private double acceptanceRate;
+    private String acceptanceRate;
     private Integer difficultyId;
     private String difficultyName;
     private List<Integer> topicIds;
+    private List<String> topicNames;
     private LocalDate createdAt;
     private boolean isPublic;
     private boolean isAccepted;

@@ -95,6 +95,7 @@ public class ProblemServiceImpl implements ProblemService {
                     .problemId(problem.getProblemId())
                     .title(request.getTitle())
                     .url(getSlugPrefix()+problem.getProblemId())
+                    .topicTitles(topics.stream().map(Topic::getName).toList())
                     .createdAt(problem.getCreatedAt().toLocalDate())
                     .acceptanceRate(0)
                     .difficultyId(difficulty.getDifficultyId())
@@ -197,7 +198,12 @@ public class ProblemServiceImpl implements ProblemService {
                     .map(Topic::getTopicId)
                     .collect(Collectors.toSet());
 
+            Set<String> newTopicTitles = newTopics.stream()
+                            .map(Topic::getName)
+                            .collect(Collectors.toSet());
+
             problemDocumentUpdateRequest.setTopicIds(newTopicIds);
+            problemDocumentUpdateRequest.setTopicTitles(newTopicTitles);
 
             Set<Integer> toRemove = new HashSet<>(currentTopicIds);
             toRemove.removeAll(newTopicIds);

@@ -108,7 +108,8 @@ public class ProblemDocumentRepoImpl  {
                                     "title", request.getTitle(),
                                     "difficultyId", request.getDifficultyId(),
                                     "difficultyName", request.getDifficultyName(),
-                                    "topic", request.getTopicIds()
+                                    "topic", request.getTopicIds(),
+                                    "topicTitle", request.getTopicTitles()
                             )),
                     ProblemDocument.class
             );

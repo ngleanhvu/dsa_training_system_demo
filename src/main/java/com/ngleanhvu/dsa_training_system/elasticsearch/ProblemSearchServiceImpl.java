@@ -7,6 +7,7 @@ import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentCreateReques
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateAcceptRateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemDocumentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ToggleRequest;
+import com.ngleanhvu.dsa_training_system.dto.response.ListProblemDocumentResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.dto.response.ProblemDocumentResponse;
 import com.ngleanhvu.dsa_training_system.repo.SubmissionRepo;
@@ -31,7 +32,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     private final SubmissionRepo submissionRepo;
 
     @Override
-    public List<ProblemDocumentResponse> search(ProblemSearchRequest request, PagingSearch pagingSearch) {
+    public ListProblemDocumentResponse search(ProblemSearchRequest request, PagingSearch pagingSearch) {
         var problemDocumentPage =  problemDocumentRepoImpl.search(request, pagingSearch);
         var problemDocuments = problemDocumentPage.getContent();
         var problemIds = problemDocuments.stream()
@@ -46,18 +47,24 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                 .map(p -> ProblemDocumentResponse.builder()
                         .id(p.getId())
                         .title(p.getTitle())
-                        .acceptanceRate(p.getAcceptanceRate())
+                        .acceptanceRate(p.getAcceptanceRate()+"%")
                         .topicIds(p.getTopic().stream().toList())
                         .createdAt(p.getCreatedAt())
                         .difficultyId(p.getDifficultyId())
                         .difficultyName(p.getDifficultyName())
                         .isPublic(p.isPublic())
                         .isAccepted(problemSolvedIdsSet.contains(p.getId()))
+                        .topicNames(p.getTopicTitle())
                         .build()
                 )
                 .toList();
         log.debug("problemDocumentResponses : {}", problemDocumentResponses);
-        return problemDocumentResponses;
+        ListProblemDocumentResponse listProblemDocumentResponse = ListProblemDocumentResponse.builder()
+                .problemDocumentResponses(problemDocumentResponses)
+                .page(problemDocumentPage.getNumber()+1)
+                .totalPages(problemDocumentPage.getTotalPages())
+                .build();
+        return listProblemDocumentResponse;
     }
 
     @TransactionalEventListener
@@ -71,6 +78,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                 .title(problemDocumentCreateRequest.getTitle())
                 .createdAt(problemDocumentCreateRequest.getCreatedAt())
                 .acceptanceRate(problemDocumentCreateRequest.getAcceptanceRate())
+                .topicTitle(problemDocumentCreateRequest.getTopicTitles())
                 .topic(problemDocumentCreateRequest.getTopicIds())
                 .difficultyId(problemDocumentCreateRequest.getDifficultyId())
                 .difficultyName(problemDocumentCreateRequest.getDifficultyName())

@@ -17,4 +17,5 @@ public class ProblemDocumentCreateRequest {
     private List<Integer> topicIds;
     private double acceptanceRate;
     private LocalDate createdAt;
+    private List<String> topicTitles;
 }

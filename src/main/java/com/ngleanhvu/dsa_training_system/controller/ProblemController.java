@@ -56,10 +56,7 @@ public class ProblemController {
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDirection);
 
-        log.info("Paging search: {}", pagingSearch);
-
         var response = problemSearchService.search(problemSearchRequest, pagingSearch);
-        log.info("Search problem response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .message("Search problem success")
