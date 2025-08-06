@@ -16,5 +16,6 @@ public class ProblemDetailResponse {
     private int memoryLimit;
     private int timeLimit;
     private List<TopicResponse> topics;
+    private List<ExampleResponse> examples;
     private DifficultResponse difficult;
 }

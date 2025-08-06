@@ -175,6 +175,8 @@ public class ExampleServiceImpl implements ExampleService {
         Example example = exampleRepo.findById(exampleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Example", "id", String.valueOf(exampleId)));
         log.info("Updating example: {}", example.toString());
+        log.info("request: {}", request);
+
         example.setInput(request.getInput());
         example.setOutput(request.getOutput());
         example.setExplantation(request.getExplanation());

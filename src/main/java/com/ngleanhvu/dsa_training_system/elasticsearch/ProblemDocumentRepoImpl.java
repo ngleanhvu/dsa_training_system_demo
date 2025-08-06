@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
@@ -48,9 +49,12 @@ public class ProblemDocumentRepoImpl  {
             log.info("query: {}", query);
         } else {
             query = Query.of(q -> q.bool(b -> {
-                if (searchRequest.getTitle() != null && !searchRequest.getTitle().isEmpty()) {
-                    b.must(m -> m.match(t -> t.field("title").query(FieldValue.of(searchRequest.getTitle()))));
-                }
+                b.must(m -> m
+                        .wildcard(w -> w
+                                .field("title")
+                                .value("*" + searchRequest.getTitle().toLowerCase() + "*")
+                        )
+                );
 
                 b.must(m -> m.term(t -> t.field("isPublic").value(true)));
 

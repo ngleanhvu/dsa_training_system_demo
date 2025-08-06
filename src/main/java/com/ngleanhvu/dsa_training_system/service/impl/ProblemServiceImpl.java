@@ -38,6 +38,7 @@ public class ProblemServiceImpl implements ProblemService {
     private final ProblemTopicRepo problemTopicRepo;
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ExampleRepo exampleRepo;
 
     @Value("${server.port}")
     private String serverPort;
@@ -293,6 +294,23 @@ public class ProblemServiceImpl implements ProblemService {
 
         List<String> hints = objectMapper.readValue(problemDetail.getHints(), new TypeReference<>() {});
 
+        List<ExampleResponse> exampleResponses = exampleRepo.findByProblem(problemId)
+                .stream()
+                .map(e -> {
+                    try {
+                        return ExampleResponse.builder()
+                                .exampleId(e.getExampleId())
+                                .explanation(e.getExplantation())
+                                .input(e.getInput())
+                                .output(e.getOutput())
+                                .images(objectMapper.readValue(e.getImages(), new TypeReference<>() {}))
+                                .build();
+                    } catch (JsonProcessingException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                })
+                .toList();
+
         ProblemDetailResponse response = ProblemDetailResponse.builder()
                 .problemId(problemDetail.getProblem().getProblemId())
                 .title(problemDetail.getProblem().getTitle())
@@ -305,6 +323,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .constraints(problemDetail.getConstraints())
                 .hints(hints)
                 .memoryLimit(problemDetail.getMemoryLimit())
+                .examples(exampleResponses)
                 .timeLimit(problemDetail.getTimeLimit())
                 .build();
 

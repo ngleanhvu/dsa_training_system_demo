@@ -11,6 +11,7 @@ import java.util.List;
 public class ProblemDocumentResponse {
     private Integer id;
     private String title;
+    private String url;
     private String acceptanceRate;
     private Integer difficultyId;
     private String difficultyName;

@@ -55,6 +55,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                         .isPublic(p.isPublic())
                         .isAccepted(problemSolvedIdsSet.contains(p.getId()))
                         .topicNames(p.getTopicTitle())
+                        .url(p.getUrl())
                         .build()
                 )
                 .toList();
@@ -63,6 +64,7 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                 .problemDocumentResponses(problemDocumentResponses)
                 .page(problemDocumentPage.getNumber()+1)
                 .totalPages(problemDocumentPage.getTotalPages())
+                .totalElements((int) problemDocumentPage.getTotalElements())
                 .build();
         return listProblemDocumentResponse;
     }

@@ -11,4 +11,5 @@ public class ListProblemDocumentResponse {
     private List<ProblemDocumentResponse> problemDocumentResponses;
     private int page;
     private int totalPages;
+    private int totalElements;
 }
