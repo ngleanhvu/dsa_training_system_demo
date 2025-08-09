@@ -44,7 +44,5 @@ public class Discuss {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "discuss")
     private Set<DiscussTag> discussTags;
 
-    @OneToOne(mappedBy = "discuss")
-    private Solution solution;
 }
 

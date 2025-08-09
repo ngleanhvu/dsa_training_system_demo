@@ -67,7 +67,8 @@ public class AuthController {
 
 
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> register(@ModelAttribute RegisterRequest registerRequest) throws IOException {
+    public ResponseEntity<?> register(@Valid @ModelAttribute RegisterRequest registerRequest) throws IOException {
+        log.info("registerRequest: {}", registerRequest);
         authService.register(registerRequest);
         var apiResponse = ApiResponse.builder()
                 .message("Register success")

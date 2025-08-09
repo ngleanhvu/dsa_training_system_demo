@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.entity.Comment;
 public class CommentMapper {
     public static CommentResponse toDto(Comment comment) {
         return CommentResponse.builder()
+                .commentId(comment.getCommentId())
                 .commentCount(comment.getCommentCount())
                 .upVotes(comment.getUpVotes())
                 .content(comment.getContent())

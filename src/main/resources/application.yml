@@ -13,6 +13,7 @@ spring:
       resourceserver:
         jwt:
           public-key-location: classpath:keys/public-key.pem
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -43,6 +44,13 @@ spring:
 logging:
   level:
     org.apache.tomcat.util.http.parser.Cookie: DEBUG
+    org:
+      hibernate:
+        SQL: DEBUG
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE
 
 github:
   client_id: Ov23li0lgHoq3nu5EIX0

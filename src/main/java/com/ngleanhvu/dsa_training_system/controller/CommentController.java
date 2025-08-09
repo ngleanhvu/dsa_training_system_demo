@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.CommentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,48 @@ public class CommentController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    @PostMapping("/problems/{problemId}")
+    public ResponseEntity<?> createCommentForProblem(@Valid @RequestBody CommentRequest request,
+                                           @PathVariable("problemId") Integer problemId,
+                                           @RequestHeader("Authorization") String token) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        log.info("userId = {}", userId);
+        request.setUserId(userId);
+        commentService.createCommentForProblem(request, problemId);
+        var response = ApiResponse.builder()
+                .message("Comment create success")
+                .status(HttpStatus.CREATED.name())
+                .metadata(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/parent/{parentCommentId}/credentials")
+    public ResponseEntity<?> getCommentsByParentCommentWithUser(@PathVariable("parentCommentId") Integer parentCommentId,
+                                                                @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                                                @RequestParam(required = false, defaultValue = "1") int page,
+                                                                @RequestParam(required = false, defaultValue = "5") int size,
+                                                                @RequestParam(required = false, defaultValue = "desc") String sortDir,
+                                                                @RequestHeader("Authorization") String token) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(changeSortBy(sortBy));
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
+        pagingSearch.setSize(size);
+        pagingSearch.setDirection(sortDir);
+        var response = commentService.getCommentsByParentCommentWithUser(parentCommentId, userId, pagingSearch);
+        log.info("response: {}", response);
+
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .metadata(response)
+                .message("Comment get success")
+                .build();
+
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
     @GetMapping("/parent/{parentCommentId}")
     public ResponseEntity<?> getParentComment(@PathVariable("parentCommentId") Integer parentCommentId,
                                               @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
@@ -51,6 +94,7 @@ public class CommentController {
         pagingSearch.setPage(page > 0 ? page - 1 : 0);
         pagingSearch.setSize(size);
         pagingSearch.setDirection(sortDir);
+        log.info("pagingSearch = {}", pagingSearch);
 
         var response = commentService.getChildCommentsByParentComment(parentCommentId, pagingSearch);
         log.info("response: {}", response);
@@ -63,6 +107,56 @@ public class CommentController {
 
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
+
+    @GetMapping("/problems/{problemId}")
+    public ResponseEntity<?> getProblemComment(@PathVariable("problemId") Integer problemId,
+                                               @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                               @RequestParam(required = false, defaultValue = "1") int page,
+                                               @RequestParam(required = false, defaultValue = "5") int size,
+                                               @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(sortBy);
+        pagingSearch.setPage(Math.max(0, page - 1));
+        pagingSearch.setSize(size);
+        pagingSearch.setDirection(sortDir);
+        log.info("pagingSearch = {}", pagingSearch);
+
+        var response = commentService.getCommentsByProblem(problemId, pagingSearch, null);
+        log.info("response: {}", response);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .metadata(response)
+                .message("Comment get success")
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @GetMapping("/problems/{problemId}/credentials")
+    public ResponseEntity<?> getProblemCommentWithCredentials(@PathVariable("problemId") Integer problemId,
+                                               @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                               @RequestParam(required = false, defaultValue = "1") int page,
+                                               @RequestParam(required = false, defaultValue = "5") int size,
+                                               @RequestParam(required = false, defaultValue = "desc") String sortDir,
+                                               @RequestHeader("Authorization") String token) {
+        log.info("credentials");
+        String userId = jwtUtil.getUserIdFromToken(token);
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(changeSortBy(sortBy));
+        pagingSearch.setPage(Math.max(0, page - 1));
+        pagingSearch.setSize(size);
+        pagingSearch.setDirection(sortDir);
+        log.info("pagingSearch = {}", pagingSearch);
+
+        var response = commentService.getCommentsByProblem(problemId, pagingSearch, userId);
+        log.info("response: {}", response);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .metadata(response)
+                .message("Comment get success")
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
 
     @GetMapping("/discuss/{discussId}")
     public ResponseEntity<?> getDiscuss(@PathVariable("discussId") Integer discussId,
@@ -91,7 +185,7 @@ public class CommentController {
 
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PatchMapping("/{commentId}")
-    public ResponseEntity<?> updateComment(@RequestBody CommentUpdateRequest request,
+    public ResponseEntity<?> updateComment(@Valid @RequestBody CommentUpdateRequest request,
                                            @PathVariable("commentId") Integer commentId,
                                            @RequestHeader("Authorization") String token) {
 
@@ -131,8 +225,9 @@ public class CommentController {
     @PostMapping("/{commentId}/toggle")
     public ResponseEntity<?> toggleVote(@RequestHeader("Authorization") String token,
                                         @PathVariable("commentId") Integer commentId) {
-
+        log.info("commentId for toggle = {}", commentId);
         String userId = jwtUtil.getUserIdFromToken(token);
+        log.info("userId for toggle = {}", userId);
 
         commentService.toggleVote(userId, commentId);
 
@@ -143,5 +238,18 @@ public class CommentController {
                 .build();
 
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    private String changeSortBy(String sortOrder) {
+        if (sortOrder.equals("createdAt")) {
+            return "created_at";
+        }
+        if (sortOrder.equals("upVotes")) {
+            return "up_votes";
+        }
+        if (sortOrder.equals("content")) {
+            return "content";
+        }
+        return "created_at";
     }
 }

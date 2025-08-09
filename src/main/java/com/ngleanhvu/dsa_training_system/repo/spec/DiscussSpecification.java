@@ -3,7 +3,6 @@ package com.ngleanhvu.dsa_training_system.repo.spec;
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
 import com.ngleanhvu.dsa_training_system.entity.Discuss;
 import com.ngleanhvu.dsa_training_system.entity.DiscussTag;
-import com.ngleanhvu.dsa_training_system.entity.Solution;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
@@ -60,17 +59,6 @@ public class DiscussSpecification {
             query.distinct(true);
             Join<Discuss, DiscussTag> tagJoin = root.join("discussTags", JoinType.INNER);
             return tagJoin.get("tag").get("tagId").in(tagIds);
-        };
-    }
-
-    public static Specification<Discuss> hasProblem(Integer problemId) {
-        return (root, query, cb) -> {
-            if (problemId == null) {
-                return cb.conjunction();
-            }
-
-            Join<Discuss, Solution> solutionJoin = root.join("solution", JoinType.INNER);
-            return cb.equal(solutionJoin.get("problem").get("problemId"), problemId);
         };
     }
 

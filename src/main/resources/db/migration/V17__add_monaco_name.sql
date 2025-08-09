@@ -1,0 +1,1 @@
+alter table programming_languages add column  monaco_name varchar(50) default '';

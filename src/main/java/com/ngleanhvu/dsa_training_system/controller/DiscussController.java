@@ -54,6 +54,7 @@ public class DiscussController {
         pagingSearch.setSize(size);
         pagingSearch.setSortBy(sortBy);
         pagingSearch.setDirection(sortDir);
+        log.info("Paging search: {}", pagingSearch);
 
         var response = discussService.getDiscusses(discussFilterRequest, pagingSearch);
 

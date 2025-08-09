@@ -246,6 +246,7 @@ public class ProblemServiceImpl implements ProblemService {
         existingProblemDetail.setHints(hintsJson);
 
         if (problemUpdateRequest.getDescription() != null) {
+            log.info("problem description: {}", problemUpdateRequest.getDescription());
             existingProblemDetail.setDescription(problemUpdateRequest.getDescription());
         }
 
@@ -258,8 +259,8 @@ public class ProblemServiceImpl implements ProblemService {
         }
 
 
-            String problemDocumentUpdateJson = objectMapper.writeValueAsString(problemDocumentUpdateRequest);
-            kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, problemDocumentUpdateJson);
+        String problemDocumentUpdateJson = objectMapper.writeValueAsString(problemDocumentUpdateRequest);
+        kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, problemDocumentUpdateJson);
 
 
         problemRepo.save(existingProblem);
