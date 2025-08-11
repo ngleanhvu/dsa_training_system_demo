@@ -11,6 +11,9 @@ public interface CommentService {
 
     void createCommentForProblem(CommentRequest commentRequest, Integer problemId);
     ListCommentResponse getCommentsByDiscuss(Integer discussId, PagingSearch pagingSearch);
+    ListCommentResponse getCommentsByDiscussWithCredential(Integer problemId,
+                                                           String userId,
+                                                           PagingSearch pagingSearch);
     ListCommentResponse getCommentsByProblem(Integer problemId, PagingSearch pagingSearch, String userId);
     ListCommentResponse getChildCommentsByParentComment(Integer parentCommentId, PagingSearch pagingSearch);
     ListCommentResponse getCommentsByParentCommentWithUser(Integer parentCommentId, String userId, PagingSearch pagingSearch);
@@ -18,4 +21,5 @@ public interface CommentService {
     void toggleVote(String userId, Integer commentId);
     void updateComment(Integer commentId, CommentUpdateRequest commentUpdateRequest);
     void deleteComment(Integer commentId, String userId);
+
 }

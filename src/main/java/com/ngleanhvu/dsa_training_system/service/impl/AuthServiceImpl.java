@@ -84,6 +84,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findById(authLocal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Người dùng","id",authLocal.getUserId()));
 
+        log.info("user = {}", user);
+
         LoginResponse loginResponse =  generateLoginResponse(user);
 
         loginResponse.setUser(UserResponse.builder()

@@ -3,10 +3,7 @@ package com.ngleanhvu.dsa_training_system.service.impl;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussFilterRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.DiscussUpdateRequest;
-import com.ngleanhvu.dsa_training_system.dto.response.DiscussDetailResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.DiscussResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.ListDiscussResponse;
-import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
+import com.ngleanhvu.dsa_training_system.dto.response.*;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
@@ -15,14 +12,14 @@ import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.DiscussSpecification;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -155,8 +152,11 @@ public class DiscussServiceImpl implements DiscussService {
     public void updateDiscuss(Integer discussId, DiscussUpdateRequest request) {
         Discuss discuss = discussRepo.findById(discussId)
                 .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
-
-        if (!discuss.getUser().getUserId().equals(request.getUserId()) || discuss.getUser().getRole() != UserRole.ADMIN) {
+        log.info("discuss: {}", discuss);
+        log.info("updateDiscuss: {}", request);
+        log.info("userId: {}", discuss.getUser().getUserId());
+        log.info("userId with discuss request: {}", request.getUserId());
+        if (!discuss.getUser().getUserId().equals(request.getUserId()) && discuss.getUser().getRole() != UserRole.ADMIN) {
             throw new PermissionException("Discuss",String.valueOf(discussId));
         }
 
@@ -203,5 +203,115 @@ public class DiscussServiceImpl implements DiscussService {
         }
 
         discussRepo.save(discuss);
+    }
+
+    @Override
+    public DiscussForUpdateResponse getDiscussForUpdate(Integer discussId) {
+        Discuss discuss = discussRepo.findById(discussId)
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss","id", String.valueOf(discussId)));
+
+        DiscussForUpdateResponse response = new DiscussForUpdateResponse();
+        response.setTitle(discuss.getTitle());
+        response.setContent(discuss.getContent());
+
+        List<Integer> tagIds = discuss.getDiscussTags().stream()
+                .map(d -> d.getTag().getTagId())
+                .toList();
+
+        response.setTagIds(tagIds);
+        log.info("discuss response: {}", response);
+
+        return response;
+    }
+
+    @Override
+    public ListDiscussResponse getDiscussesWithUser(DiscussFilterRequest discussFilterRequest, String userId, PagingSearch pagingSearch) {
+        Page<Object[]> discussesWithUser = discussRepo.findDiscussesWithUser(discussFilterRequest.getKeyword(),
+                userId,
+                pagingSearch.toPageable());
+
+        log.info("total elements: {}", discussesWithUser.getTotalElements());
+
+        List<DiscussResponse> discussDetailResponses = discussesWithUser.getContent().stream()
+                .map(d -> DiscussResponse.builder()
+                        .discussId((Integer) d[0])
+                        .title((String) d[1])
+                        .content((String) d[2])
+                        .createdAt(AppUtil.changeFormatDate(d[3]))
+                        .upVotes((Integer) d[4])
+                        .comments((Integer) d[5])
+                        .userEmail((String) d[6])
+                        .userDisplayName((String) d[7])
+                        .userAvatar((String) d[8])
+                        .isUpVote((Long) d[9])
+                        .build())
+                .toList();
+
+        log.info("discuss response: {}", discussDetailResponses);
+
+        return ListDiscussResponse.builder()
+                .discuss(discussDetailResponses)
+                .totalPages(discussesWithUser.getTotalPages())
+                .page(discussesWithUser.getNumber()+1)
+                .build();
+    }
+
+    @Override
+    public DiscussDetailResponse getDiscussDetail(Integer discussId, String userId) {
+        List<Object[]> discuss = discussRepo.findByDiscussWithCredential(discussId, userId);
+        if (discuss.isEmpty()) {
+            throw new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId));
+        }
+
+        Object[] row = discuss.getFirst();
+        log.info("discuss response: {}", row);
+        try {
+            System.out.println(row[9].getClass().getName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        String title = (String) row[1];
+        log.info("discuss title: {}", title);
+        String content = (String) row[2];
+        log.info("discuss content: {}", content);
+        LocalDateTime createdAt = AppUtil.changeFormatDate(row[3]);
+        log.info("discuss createdAt: {}", createdAt);
+        Integer upVotes = (Integer) row[5];
+        log.info("discuss upVotes: {}", upVotes);
+        Integer comments = (Integer) row[4];
+        log.info("discuss comments: {}", comments);
+        String userEmail = (String) row[6];
+        log.info("discuss userEmail: {}", userEmail);
+        String userDisplayName = (String) row[7];
+        log.info("discuss userDisplayName: {}", userDisplayName);
+        String userAvatar = (String) row[8];
+        log.info("discuss userAvatar: {}", userAvatar);
+        Long isUpVote = (Long) row[9];
+        log.info("discuss isUpVote: {}", isUpVote);
+
+        List<TagResponse> tagResponses = discussTagRepo.findByDiscussId(discussId).stream()
+                .map(t -> TagResponse.builder().tagId(t.getTag().getTagId())
+                        .name(t.getTag().getName())
+                        .build())
+                .toList();
+
+        DiscussDetailResponse discussDetailResponse = DiscussDetailResponse.builder()
+                        .discussId(discussId)
+                        .title(title)
+                        .content(content)
+                        .createdAt(createdAt)
+                        .upVotes(upVotes)
+                        .tags(tagResponses)
+                        .comments(comments)
+                        .userEmail(userEmail)
+                        .userDisplayName(userDisplayName)
+                        .userAvatar(userAvatar)
+                        .isUpVote(isUpVote)
+                        .build();
+
+        log.info("discuss response: {}", discussDetailResponse);
+
+        return discussDetailResponse;
+
     }
 }

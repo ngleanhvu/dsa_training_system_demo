@@ -18,6 +18,7 @@ public class DiscussDetailResponse {
     private int views;
     private LocalDateTime createdAt;
     private List<TagResponse> tags;
+    private Long isUpVote = 0L;
 
     private String userEmail;
     private String userAvatar;

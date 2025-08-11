@@ -21,7 +21,7 @@ public class DiscussResponse {
     private int comments;
     private int views;
     private LocalDateTime createdAt;
-    private List<String> tags;
+    private Long isUpVote = 0L;
 
     private String userEmail;
     private String userAvatar;

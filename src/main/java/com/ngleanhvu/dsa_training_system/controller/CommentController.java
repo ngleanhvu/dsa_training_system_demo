@@ -6,6 +6,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.CommentService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -183,6 +184,33 @@ public class CommentController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
+    @GetMapping("/discuss/credential/{discussId}")
+    public ResponseEntity<?> getDiscussWithCredential(@PathVariable("discussId") Integer discussId,
+                                        @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                        @RequestParam(required = false, defaultValue = "1") int page,
+                                        @RequestParam(required = false, defaultValue = "5") int size,
+                                        @RequestParam(required = false, defaultValue = "desc") String sortDir,
+                                        @RequestHeader("Authorization") String token) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(changeSortBy(sortBy));
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
+        pagingSearch.setSize(size);
+        pagingSearch.setDirection(sortDir);
+
+        var response = commentService.getCommentsByDiscussWithCredential(discussId, userId, pagingSearch);
+
+        log.info("response: {}", response);
+
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .metadata(response)
+                .message("Comment get success")
+                .build();
+
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PatchMapping("/{commentId}")
     public ResponseEntity<?> updateComment(@Valid @RequestBody CommentUpdateRequest request,
@@ -241,15 +269,6 @@ public class CommentController {
     }
 
     private String changeSortBy(String sortOrder) {
-        if (sortOrder.equals("createdAt")) {
-            return "created_at";
-        }
-        if (sortOrder.equals("upVotes")) {
-            return "up_votes";
-        }
-        if (sortOrder.equals("content")) {
-            return "content";
-        }
-        return "created_at";
+        return AppUtil.changeSortBy(sortOrder);
     }
 }

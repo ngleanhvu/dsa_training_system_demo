@@ -8,6 +8,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.DiscussDetailResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.DiscussService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,31 @@ public class DiscussController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
+    @PostMapping("/search/credential")
+    public ResponseEntity<?> getDiscussesWithCredentials (@RequestBody DiscussFilterRequest discussFilterRequest,
+                                                          @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                                          @RequestParam(required = false, defaultValue = "1") int page,
+                                                          @RequestParam(required = false, defaultValue = "10") int size,
+                                                          @RequestParam(required = false, defaultValue = "desc") String sortDir,
+                                                          @RequestHeader("Authorization") String token) {
+        log.info("Search discusses: {}", discussFilterRequest);
+        String userId = jwtUtil.getUserIdFromToken(token);
+        log.info("User id: {}", userId);
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setPage(page > 0 ? page - 1 : 0);
+        pagingSearch.setSize(size);
+        pagingSearch.setSortBy(AppUtil.changeSortBy(sortBy));
+        pagingSearch.setDirection(sortDir);
+        var response = discussService.getDiscussesWithUser(discussFilterRequest,userId,pagingSearch);
+        var apiResponse = ApiResponse.builder()
+                .message("Get discusses success")
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PutMapping("/{discussId}")
     public ResponseEntity<?> updateDiscuss(@RequestBody DiscussUpdateRequest discussUpdateRequest,
@@ -101,7 +127,7 @@ public class DiscussController {
         return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
     }
 
-    @GetMapping("/{discussId}")
+    @GetMapping("/detail/{discussId}")
     public ResponseEntity<?> getDiscuss(@PathVariable("discussId") Integer discussId) {
         DiscussDetailResponse discussResponse = discussService.getDiscussById(discussId);
         var response = ApiResponse.builder()
@@ -110,6 +136,30 @@ public class DiscussController {
                 .status(HttpStatus.OK.name())
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/detail/credential/{discussId}")
+    public ResponseEntity<?> getDiscussWithCredential(@PathVariable("discussId") Integer discussId,
+                                                      @RequestHeader("Authorization") String token) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        DiscussDetailResponse discussDetailResponse = discussService.getDiscussDetail(discussId, userId);
+        var response = ApiResponse.builder()
+                .message("Get discuss detail success")
+                .metadata(discussDetailResponse)
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{discussId}")
+    public ResponseEntity<?> getDiscussForUpdate(@PathVariable("discussId") Integer discussId) {
+        var response = discussService.getDiscussForUpdate(discussId);
+        var apiResponse = ApiResponse.builder()
+                .message("Get discuss success")
+                .metadata(response)
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('USER','ADMIN')")

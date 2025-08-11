@@ -11,6 +11,7 @@ import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.mappter.CommentMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.service.CommentService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -127,6 +128,37 @@ public class CommentServiceImpl implements CommentService {
                 .comments(commentResponses)
                 .totalPages(comments.getTotalPages())
                 .page(comments.getNumber()+1)
+                .build();
+    }
+
+    @Override
+    public ListCommentResponse getCommentsByDiscussWithCredential(Integer discussId, String userId, PagingSearch pagingSearch) {
+        log.info("discussId: {}", discussId);
+        log.info("userId: {}", userId);
+        Discuss discuss = discussRepo.findById(discussId)
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
+        Page<Object[]> commentDiscussPage = commentRepo.findCommentByDiscussWithCredential(discussId,
+                userId,
+                pagingSearch.toPageable());
+        log.info("total elements: {}", commentDiscussPage.getTotalElements());
+        List<CommentResponse> commentResponses = commentDiscussPage.getContent().stream()
+                .map(c -> CommentResponse.builder()
+                        .commentId((Integer) c[0])
+                        .content((String) c[1])
+                        .commentCount((Integer) c[2])
+                        .upVotes((Integer) c[3])
+                        .createdAt(AppUtil.changeFormatDate(c[4]))
+                        .userEmail((String) c[5])
+                        .userDisplayName((String) c[6])
+                        .userAvatar((String) c[7])
+                        .isUpVote((Long) c[8])
+                        .build())
+                .toList();
+        log.info("commentResponses: {}", commentResponses);
+        return ListCommentResponse.builder()
+                .totalPages(commentDiscussPage.getTotalPages())
+                .page(commentDiscussPage.getNumber()+1)
+                .comments(commentResponses)
                 .build();
     }
 
