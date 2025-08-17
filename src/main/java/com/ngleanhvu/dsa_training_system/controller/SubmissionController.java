@@ -8,6 +8,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,7 +22,10 @@ public class SubmissionController {
     private final JwtUtil jwtUtil;
 
     @PostMapping("/submit")
-    public ResponseEntity<?> submit(@RequestBody SubmissionRequest submissionRequest) throws JsonProcessingException {
+    public ResponseEntity<?> submit(@RequestBody SubmissionRequest submissionRequest,
+                                    @RequestHeader("Authorization") String token) throws JsonProcessingException {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        submissionRequest.setUserId(userId);
         var submissionResponse = submissionService.submit(submissionRequest);
 
         ApiResponse<?> response = ApiResponse.builder()
@@ -65,6 +69,28 @@ public class SubmissionController {
                 .message("Get submissions success")
                 .status(HttpStatus.OK.name())
                 .metadata(responses)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @GetMapping("/problem/{problemId}/history")
+    public ResponseEntity<?> getSubmissionByUserAndProblem(@PathVariable("problemId") Integer problemId,
+                                                           @RequestHeader("Authorization") String token,
+                                                           @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+                                                           @RequestParam(required = false, defaultValue = "1") int page,
+                                                           @RequestParam(required = false, defaultValue = "5") int size,
+                                                           @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        PagingSearch pagingSearch = new PagingSearch();
+        pagingSearch.setSortBy(sortBy);
+        pagingSearch.setPage(Math.max(0, page - 1));
+        pagingSearch.setSize(size);
+        pagingSearch.setDirection(sortDir);
+        String userId = jwtUtil.getUserIdFromToken(token);
+        var response = submissionService.getUserSubmission(userId, problemId, pagingSearch.toPageable());
+        var apiResponse = ApiResponse.builder()
+                .message("Get submission success")
+                .status(HttpStatus.OK.name())
+                .metadata(response)
                 .build();
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }

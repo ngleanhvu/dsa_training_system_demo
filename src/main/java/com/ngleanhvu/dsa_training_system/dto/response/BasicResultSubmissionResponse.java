@@ -13,6 +13,7 @@ public class BasicResultSubmissionResponse {
     private String message;
     private SubmissionStatus status;
     private int submissionId;
+    private String sourceCode;
     private LocalDateTime timestamp;
     private int memory;
     private int time;

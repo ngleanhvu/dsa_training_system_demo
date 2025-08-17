@@ -11,6 +11,7 @@ import java.util.List;
 @Data
 @Builder
 public class SubmissionCreateRequest {
+    private String userId;
     private int pass;
     private int total;
     private String message;

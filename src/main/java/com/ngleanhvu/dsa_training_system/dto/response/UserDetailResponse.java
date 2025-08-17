@@ -13,8 +13,7 @@ public class UserDetailResponse {
     private String firstName;
     private String lastName;
     private LocalDate dateOfBirth;
-    private UserDetails.Gender gender;
-    private String role;
+    private String gender;
     private String phoneNumber;
     private String address;
     private String linkedinUrl;

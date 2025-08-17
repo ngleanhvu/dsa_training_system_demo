@@ -4,6 +4,7 @@ import com.ngleanhvu.dsa_training_system.dto.request.CommentRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.CommentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.CommentResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.ListCommentResponse;
+import com.ngleanhvu.dsa_training_system.dto.response.NotificationResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.*;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
@@ -11,6 +12,7 @@ import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.mappter.CommentMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.service.CommentService;
+import com.ngleanhvu.dsa_training_system.service.NotificationService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,12 +37,15 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepo userRepo;
     private final ProblemRepo problemRepo;
     private final ProblemCommentRepo problemCommentRepo;
+    private final NotificationService notificationService;
 
     @Transactional
     @Override
     public void createComment(CommentRequest commentRequest,
                               Integer discussId) {
-
+        boolean isReply = false;
+        String content = "";
+        String email = "";
         User user = userRepo.findById(commentRequest.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", commentRequest.getUserId()));
 
@@ -59,13 +64,29 @@ public class CommentServiceImpl implements CommentService {
         if (commentRequest.getParentCommentId() != null) {
             Comment parentComment = commentRepo.findById(commentRequest.getParentCommentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentRequest.getParentCommentId())));
-
             comment.setParent(parentComment);
             parentComment.setCommentCount(parentComment.getCommentCount() + 1);
+            isReply = true;
+            email = parentComment.getUser().getEmail();
         }
-
+        log.info("isReply: " + isReply);
+        log.info("email: " + email);
+        if (isReply) {
+            content = " have replied your comment";
+        } else {
+            content = " have comment your discuss";
+        }
+        String userDisplayName = user.getDisplayName();
         discuss.setCommentCount(comment.getCommentCount() + 1);
+        if (email == null || email.isEmpty()) {
+            email = discuss.getUser().getEmail();
+        }
         commentRepo.save(comment);
+        NotificationResponse notificationResponse = new NotificationResponse();
+        notificationResponse.setContent(userDisplayName + content);
+        notificationResponse.setRead(false);
+        notificationResponse.setSenderUserName(email);
+        notificationService.sendPrivateNotification(notificationResponse);
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
@@ -95,6 +116,11 @@ public class CommentServiceImpl implements CommentService {
             comment.setParent(parentComment);
             parentComment.setCommentCount(parentComment.getCommentCount() + 1);
             commentRepo.save(parentComment);
+            NotificationResponse notificationResponse = new NotificationResponse();
+            notificationResponse.setContent(user.getDisplayName() + " have replied your comment");
+            notificationResponse.setRead(false);
+            notificationResponse.setSenderUserName(parentComment.getUser().getEmail());
+            notificationService.sendPrivateNotification(notificationResponse);
         }
 
         // Lưu comment mới

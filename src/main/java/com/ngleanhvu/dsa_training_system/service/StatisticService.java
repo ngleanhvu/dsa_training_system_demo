@@ -10,4 +10,7 @@ public interface StatisticService {
     List<DifficultStatsResponse>  getDifficultStatsResponse();
     List<SubmissionStatsEachYear> getSubmissionStatsEachYear(int year);
     List<UserStatsEachYear> getUserStatsEachYear(int year);
+    List<DifficultUserResponse> getDifficultUserResponse(String email);
+    ProblemUserSolved getProblemUserSolved(String email);
+    List<SubmissionCountResponse>  getSubmissionCountResponse(String email, Integer year);
 }

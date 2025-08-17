@@ -10,8 +10,16 @@ import java.time.LocalDateTime;
 
 @Slf4j
 public class AppUtil {
-    public static long megabytesToBytes(int megabytes) {
-        return ((long) megabytes * 1024 * 1024);
+    public static long megabytesToBytes(long mb) {
+        return mb * 1024 * 1024;
+    }
+
+    public static double bytesToMegabytes(long bytes) {
+        return (double) bytes / (1024 * 1024);
+    }
+
+    public static long bytesToKilobytes(long bytes) {
+        return bytes / 1024;
     }
 
     public static SubmissionStatus fromValue(String value) {

@@ -13,6 +13,7 @@ public class SubmissionMapper {
                 .memory(s.getMemoryKb())
                 .programmingLanguage(s.getProgrammingLanguage().getName())
                 .message(s.getErrorMessage())
+                .sourceCode(s.getCode())
                 .status(s.getSubmissionStatus())
                 .submissionId(s.getSubmissionId())
                 .problemId(s.getProblem().getProblemId())

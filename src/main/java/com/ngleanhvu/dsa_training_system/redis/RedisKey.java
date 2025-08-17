@@ -24,4 +24,11 @@ public class RedisKey {
     public static String generateTagKey() {
         return "tags";
     }
+
+    public static String generateForgotPasswordKey(String email) {
+        return "forgot_password:" + email;
+    }
+    public static String generateResetPasswordKey(String otp) {
+        return "reset_password:"+otp;
+    }
 }

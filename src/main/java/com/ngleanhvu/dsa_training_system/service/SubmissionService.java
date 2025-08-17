@@ -7,6 +7,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.BasicResultSubmissionRespo
 import com.ngleanhvu.dsa_training_system.dto.response.ListBasicResultSubmissionResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.ListSubmissionResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -15,5 +16,5 @@ public interface SubmissionService {
     void createSubmission(String json) throws JsonProcessingException;
     List<BasicResultSubmissionResponse> getBasicSubmissionResponses(String userId, int problemId);
     ListBasicResultSubmissionResponse getBasicSubmissionResponses(SubmissionFilterRequest filterRequest, PagingSearch pagingSearch);
-
+    ListBasicResultSubmissionResponse getUserSubmission(String userId, int problemId, Pageable pageable);
 }

@@ -11,6 +11,7 @@ import com.ngleanhvu.dsa_training_system.exception.InvalidValueException;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.ProblemSpecification;
+import com.ngleanhvu.dsa_training_system.service.NotificationService;
 import com.ngleanhvu.dsa_training_system.service.ProblemService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class ProblemServiceImpl implements ProblemService {
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ExampleRepo exampleRepo;
+    private final NotificationService notificationService;
 
     @Value("${server.port}")
     private String serverPort;
@@ -350,6 +352,11 @@ public class ProblemServiceImpl implements ProblemService {
             String toggleJson = objectMapper.writeValueAsString(toggleRequest);
             log.info("problem toggle request: {}", toggleJson);
             kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_TOGGLE_TOPIC, toggleJson);
+            NotificationResponse notificationPayload = new NotificationResponse();
+            notificationPayload.setSenderUserName("Admin");
+            notificationPayload.setContent(notificationPayload.getSenderUserName() + " have created new problem with id #" + problemId);
+            notificationPayload.setRead(false);
+            notificationService.sendPublicNotification(notificationPayload);
         } else {
             problem.setPublic(false);
 

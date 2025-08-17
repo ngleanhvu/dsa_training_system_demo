@@ -11,21 +11,27 @@ import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.mappter.SubmissionMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.SubmissionSpecification;
+import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
+import com.ngleanhvu.dsa_training_system.websocket.WebSocketPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -46,6 +52,10 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final ContestProblemRepo contestProblemRepo;
+    private final WebSocketPublisher webSocketPublisher;
+    private final JwtUtil jwtUtil;
+    private final UserRepo userRepo;
+    private final SubmissionTestCaseRepo submissionTestCaseRepo;
 
     @Value("${piston.load_balancer}")
     private String loadBalancer;
@@ -55,6 +65,11 @@ public class SubmissionServiceImpl implements SubmissionService {
 
     @Override
     public ListSubmissionResponse submit(SubmissionRequest submissionRequest) throws JsonProcessingException {
+        Authentication principal = SecurityContextHolder.getContext().getAuthentication();
+        User user = userRepo.findById(principal.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getName()));
+        String email = user.getEmail();
+
         ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionRequest.getLanguageId())
                 .orElseThrow(() -> new ResourceNotFoundException("Language", "id", String.valueOf(submissionRequest.getLanguageId())));
 
@@ -62,136 +77,145 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("ProblemDetail", "id", String.valueOf(submissionRequest.getProblemId())));
 
         List<TestCase> testCases = testCaseRepo.findAllByProblemId(submissionRequest.getProblemId());
-
         if (testCases.isEmpty()) {
             throw new InvalidValueException("Test case quantity must be more than 1");
         }
 
-        log.info("load balancer: {}", loadBalancer);
-        log.info("port: {}", port);
+        long memoryLimitBytes = AppUtil.megabytesToBytes(problemDetail.getMemoryLimit());
+        log.info("load balancer: {}, port: {}", loadBalancer, port);
 
-        List<SubmissionResponse> allResponses = new ArrayList<>();
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<SubmissionResponse>> futures = new ArrayList<>();
-            long memoryLimit = AppUtil.megabytesToBytes(problemDetail.getMemoryLimit());
-            for (TestCase testCase : testCases) {
-                futures.add(executor.submit(() -> {
+        Map<String, Object> initPayload = Map.of(
+                "type", "INIT",
+                "testCases", testCases.stream()
+                        .map(stc -> Map.of(
+                                "testCaseId", stc.getTestCaseId(),
+                                "status", SubmissionStatus.PENDING.name()
+                        ))
+                        .toList()
+        );
+        webSocketPublisher.sendSubmissionUpdate(email, initPayload);
 
-                    Map<String, Object> params = new HashMap<>();
-                    params.put("language", programmingLanguage.getFileName());
-                    params.put("version", programmingLanguage.getVersion());
+        ExecutorService executor;
+        try {
+            executor = Executors.newVirtualThreadPerTaskExecutor();
+        } catch (Throwable t) {
+            log.warn("Virtual threads not available, fallback to cached thread pool");
+            executor = Executors.newCachedThreadPool();
+        }
 
-                    List<Map<String, String>> files = new ArrayList<>();
-                    Map<String, String> file = new HashMap<>();
-                    file.put("name", programmingLanguage.getFileMainName());
-                    file.put("content", submissionRequest.getSourceCode());
-                    files.add(file);
-                    params.put("files", files);
+        Map<Integer, Future<SubmissionResponse>> futureByTestId = new LinkedHashMap<>();
+        List<SubmissionResponse> allResponses = Collections.synchronizedList(new ArrayList<>());
 
-                    params.put("stdin", testCase.getInput());
-                    params.put("run_timeout", problemDetail.getTimeLimit());
-                    params.put("run_memory_limit", problemDetail.getMemoryLimit());
+        for (TestCase testCase : testCases) {
+            Map<String, Object> runningPayload = Map.of(
+                    "type", "TESTCASE_STATUS",
+                    "testCaseId", testCase.getTestCaseId(),
+                    "status", "RUNNING"
+            );
+            webSocketPublisher.sendSubmissionUpdate(email, runningPayload);
 
-                    log.info("params: {}", params);
+            Future<SubmissionResponse> future = executor.submit(() -> {
+                SubmissionResponse resp = runSingleTestCase(
+                        programmingLanguage, problemDetail, submissionRequest, testCase, memoryLimitBytes
+                );
 
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
 
-                    String URL = String.format("http://%s:%d/api/v2/execute", loadBalancer, port);
+                Map<String, Object> donePayload = new HashMap<>();
+                donePayload.put("type", "TESTCASE_STATUS");
+                donePayload.put("testCaseId", testCase.getTestCaseId());
+                donePayload.put("status", resp.getStatus().name());
+                donePayload.put("input", resp.getInput());
+                donePayload.put("expectOutput", resp.getExpectOutput());
+                donePayload.put("actualOutput", resp.getRun() != null ? resp.getRun().getStdout() : null);
+                donePayload.put("stderr", resp.getRun() != null ? resp.getRun().getStderr() : null);
+                donePayload.put("cpuTime", resp.getRun() != null ? resp.getRun().getCpuTime() : 0);
+                donePayload.put("memory", resp.getRun() != null ? AppUtil.bytesToMegabytes(resp.getRun().getMemory()) : 0);
+                webSocketPublisher.sendSubmissionUpdate(email, donePayload);
 
-                    SubmissionResponse response = executeCode(URL, request, testCase);
+                allResponses.add(resp);
+                return resp;
+            });
 
-                    if (response == null) {
-                        return SubmissionResponse.builder()
-                                .status(SubmissionStatus.NULL_RESPONSE)
+            futureByTestId.put(testCase.getTestCaseId(), future);
+        }
 
-                                .input(testCase.getInput())
-                                .expectOutput(testCase.getOutput())
-                                .build();
-                    }
+        int perCaseTimeoutSeconds = 10;
+        for (Map.Entry<Integer, Future<SubmissionResponse>> entry : futureByTestId.entrySet()) {
+            Integer testCaseId = entry.getKey();
+            Future<SubmissionResponse> future = entry.getValue();
 
-                    response.setInput(testCase.getInput());
-                    response.setExpectOutput(testCase.getOutput());
+            try {
+                future.get(perCaseTimeoutSeconds, TimeUnit.SECONDS);
+            } catch (TimeoutException te) {
+                log.warn("Test case {} timeout", testCaseId);
 
-                    String actualOutput = response.getRun().getStdout().trim().replace("\r", "");
-                    log.info("Actual output: {}", actualOutput);
-                    String expectedOutput = testCase.getOutput().trim().replace("\r", "");
-                    log.info("Expected output: {}", expectedOutput);
+                Map<String, Object> timeoutPayload = Map.of(
+                        "type", "TESTCASE_STATUS",
+                        "testCaseId", testCaseId,
+                        "status", SubmissionStatus.TIMEOUT.name(),
+                        "message", "Test case timeout"
+                );
+                webSocketPublisher.sendSubmissionUpdate(email, timeoutPayload);
 
-                    Integer memoryUsed = response.getRun().getMemory();
+                SubmissionResponse toResp = SubmissionResponse.builder()
+                        .status(SubmissionStatus.TIMEOUT)
+                        .testCaseId(testCaseId)
+                        .build();
+                allResponses.add(toResp);
 
-                    long timeUsed = response.getRun().getCpuTime();
-                    log.info("Time used: {}", timeUsed);
-                    long timeLimit = problemDetail.getTimeLimit();
-                    log.info("Time limit: {}", timeLimit);
+                future.cancel(true);
+            } catch (Exception e) {
+                log.error("Error while waiting for test case {}: {}", testCaseId, e.getMessage(), e);
 
-                    log.info("response: {}", response);
+                Map<String, Object> errorPayload = Map.of(
+                        "type", "TESTCASE_STATUS",
+                        "testCaseId", testCaseId,
+                        "status", SubmissionStatus.ERROR.name(),
+                        "message", e.getMessage()
+                );
+                webSocketPublisher.sendSubmissionUpdate(email, errorPayload);
 
-                    System.out.println(response.getRun() == null);
-
-                    if (response.getRun() == null) {
-                        response.setStatus(SubmissionStatus.ERROR);
-                    } else if (response.getRun().getCode() != null && response.getRun().getCode() != 0) {
-                        response.setStatus(SubmissionStatus.COMPILE_ERROR);
-                    } else if (response.getRun().getStatus() != null && response.getRun().getStatus().equals("TO")) {
-                        response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED);
-                    } else if (memoryUsed > memoryLimit) {
-                        response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED);
-                    } else if (!actualOutput.equals(expectedOutput)) {
-                        response.setStatus(SubmissionStatus.WRONG_ANSWER);
-                    } else {
-                        response.setStatus(SubmissionStatus.ACCEPTED);
-                    }
-
-                    response.setTestCaseId(testCase.getTestCaseId());
-                    return response;
-                }));
-            }
-
-            for (Future<SubmissionResponse> future : futures) {
-                try {
-                    allResponses.add(future.get(10, TimeUnit.SECONDS));
-                } catch (TimeoutException e) {
-                    SubmissionResponse timeoutResp = new SubmissionResponse();
-                    timeoutResp.setStatus(SubmissionStatus.TIMEOUT);
-                    allResponses.add(timeoutResp);
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                    throw new RuntimeException(e);
-                }
+                SubmissionResponse errResp = SubmissionResponse.builder()
+                        .status(SubmissionStatus.ERROR)
+                        .testCaseId(testCaseId)
+                        .build();
+                allResponses.add(errResp);
             }
         }
 
-        int maxCpuTime = getMaxCpuTime(allResponses);
-        log.info("Avg CPU Time: {} ms", maxCpuTime);
-
-        int maxMemory = getMaxMemory(allResponses);
-        log.info("Max Memory: {} ms", maxMemory);
+        executor.shutdownNow();
 
         OverallResponse overallResponse = evaluateOverallStatus(allResponses);
-        log.info("Overall Response: {}", overallResponse);
+
+        log.info("max memory: {} MB", memoryLimitBytes);
 
         ListSubmissionResponse listSubmissionResponse = ListSubmissionResponse.builder()
-                .submissionResponses(allResponses)
-                .memory(maxMemory)
-                .runtime(maxCpuTime)
+                .submissionResponses(new ArrayList<>(allResponses))
+                .memory(getMaxMemory(allResponses))
+                .runtime(getMaxCpuTime(allResponses))
                 .language(programmingLanguage.getName())
                 .sourcecode(submissionRequest.getSourceCode())
                 .status(overallResponse)
                 .build();
 
+        Map<String, Object> finalPayload = Map.of(
+                "type", "FINAL",
+                "overall", overallResponse,
+                "memory", listSubmissionResponse.getMemory(),
+                "runtime", listSubmissionResponse.getRuntime(),
+                "language", listSubmissionResponse.getLanguage()
+        );
+        webSocketPublisher.sendSubmissionUpdate(email, finalPayload);
+
         List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests = allResponses.stream()
                 .map(r -> SubmissionTestCaseCreateRequest.builder()
                         .testCaseId(r.getTestCaseId())
-                        .runtime(r.getRun().getCpuTime())
-                        .memory(r.getRun().getMemory())
+                        .runtime(r.getRun() != null ? r.getRun().getCpuTime() : 0)
+                        .memory(r.getRun() != null ? r.getRun().getMemory() : 0)
                         .status(r.getStatus())
                         .build())
                 .toList();
-
-        log.info("submissionTestCaseCreateRequests: {}", submissionTestCaseCreateRequests);
 
         SubmissionCreateRequest submissionCreateRequest = SubmissionCreateRequest.builder()
                 .submissionTestCaseCreateRequests(submissionTestCaseCreateRequests)
@@ -202,19 +226,122 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .problemId(problemDetail.getProblem().getProblemId())
                 .sourceCode(submissionRequest.getSourceCode())
                 .submitTime(LocalDateTime.now())
-                .runtime(maxCpuTime)
-                .memory(maxMemory)
+                .runtime((int) listSubmissionResponse.getRuntime())
+                .memory((int) AppUtil.bytesToMegabytes((long) listSubmissionResponse.getMemory()))
                 .message(overallResponse.getMessage())
                 .status(overallResponse.getStatus())
+                .userId(user.getUserId())
                 .build();
 
         String submissionJson = objectMapper.writeValueAsString(submissionCreateRequest);
-
-        log.info("json: {}", submissionJson);
-
         kafkaTemplate.send(KafkaConst.SUBMISSION_CREATE_TOPIC, submissionJson);
 
         return listSubmissionResponse;
+    }
+
+
+    private SubmissionResponse runSingleTestCase(
+            ProgrammingLanguage programmingLanguage,
+            ProblemDetail problemDetail,
+            SubmissionRequest submissionRequest,
+            TestCase testCase,
+            long memoryLimitBytes
+    ) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("language", programmingLanguage.getFileName());
+        params.put("version", programmingLanguage.getVersion());
+
+        List<Map<String, String>> files = new ArrayList<>();
+        Map<String, String> file = new HashMap<>();
+        file.put("name", programmingLanguage.getFileMainName());
+        file.put("content", submissionRequest.getSourceCode());
+        files.add(file);
+        params.put("files", files);
+
+        params.put("stdin", testCase.getInput());
+        params.put("run_timeout", problemDetail.getTimeLimit());
+        params.put("run_memory_limit", problemDetail.getMemoryLimit());
+
+        log.info("run memory limit: {}", problemDetail.getMemoryLimit());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
+
+        String URL = String.format("http://%s:%d/api/v2/execute", loadBalancer, port);
+
+        SubmissionResponse response = executeCode(URL, request, testCase);
+
+        if (response == null) {
+            return SubmissionResponse.builder()
+                    .status(SubmissionStatus.NULL_RESPONSE)
+                    .input(testCase.getInput())
+                    .expectOutput(testCase.getOutput())
+                    .testCaseId(testCase.getTestCaseId())
+                    .build();
+        }
+
+        response.setInput(testCase.getInput());
+        response.setExpectOutput(testCase.getOutput());
+        response.setTestCaseId(testCase.getTestCaseId());
+
+        if (response.getRun() == null) {
+            response.setStatus(SubmissionStatus.ERROR);
+            return response;
+        }
+
+        if (response.getRun().getCode() != null && response.getRun().getCode() != 0) {
+            response.setStatus(SubmissionStatus.COMPILE_ERROR);
+            return response;
+        }
+
+        if ("RE".equals(response.getRun().getStatus())) {
+            response.setStatus(SubmissionStatus.RUNTIME_ERROR);
+            return response;
+        }
+
+        if ("TO".equals(response.getRun().getStatus())) {
+            response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED);
+            return response;
+        }
+
+        Integer memoryUsed = response.getRun().getMemory();
+        if (memoryUsed != null && memoryUsed > memoryLimitBytes) {
+            response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED);
+            return response;
+        }
+
+        String actualOutput = response.getRun().getStdout() == null ? "" : response.getRun().getStdout().trim().replace("\r", "");
+        String expectedOutput = testCase.getOutput() == null ? "" : testCase.getOutput().trim().replace("\r", "");
+
+        if (!actualOutput.equals(expectedOutput)) {
+            response.setStatus(SubmissionStatus.WRONG_ANSWER);
+        } else {
+            response.setStatus(SubmissionStatus.ACCEPTED);
+        }
+
+        return response;
+    }
+
+    private SubmissionResponse executeCode(String url, HttpEntity<Map<String, Object>> request, TestCase testCase) {
+        try {
+            SubmissionResponse response = restTemplate.postForObject(url, request, SubmissionResponse.class);
+            if (response == null) {
+                return SubmissionResponse.builder()
+                        .status(SubmissionStatus.NULL_RESPONSE)
+                        .input(testCase.getInput())
+                        .expectOutput(testCase.getOutput())
+                        .build();
+            }
+            return response;
+        } catch (Exception e) {
+            log.error("Error while submit: {}", e.getMessage(), e);
+            return SubmissionResponse.builder()
+                    .status(SubmissionStatus.ERROR)
+                    .input(testCase.getInput())
+                    .expectOutput(testCase.getOutput())
+                    .build();
+        }
     }
 
     @KafkaListener(topics = KafkaConst.SUBMISSION_CREATE_TOPIC, groupId = KafkaConst.GROUP_ID)
@@ -223,7 +350,6 @@ public class SubmissionServiceImpl implements SubmissionService {
     public void createSubmission(String json) {
         try {
             SubmissionCreateRequest submissionCreateRequest = objectMapper.readValue(json, SubmissionCreateRequest.class);
-
             log.info("submissionCreateRequest: {}", submissionCreateRequest);
 
             ProgrammingLanguage programmingLanguage = programmingLanguageRepo.findById(submissionCreateRequest.getProgrammingLanguageId())
@@ -245,8 +371,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                 totalAccepted += 1;
             }
 
-            log.info("totalSubmission: {}", totalSubmission);
-            log.info("totalAccepted: {}", totalAccepted);
+            User user = userRepo.findById(submissionCreateRequest.getUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", String.valueOf(submissionCreateRequest.getUserId())));
 
             double acceptRate = ((double) totalAccepted / totalSubmission) * 100;
             BigDecimal roundedRate = BigDecimal.valueOf(acceptRate).setScale(2, RoundingMode.HALF_UP);
@@ -263,6 +389,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .programmingLanguage(programmingLanguage)
                     .problem(problem)
                     .submittedAt(submissionCreateRequest.getSubmitTime())
+                    .user(user)
                     .status(1)
                     .build();
 
@@ -279,7 +406,6 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .build();
 
             if (submissionCreateRequest.getContestId() != null) {
-
                 ContestProblem contestProblem = contestProblemRepo.findByProblemId(problem.getProblemId())
                         .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(submissionCreateRequest.getProblemId())));
 
@@ -289,14 +415,9 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .score(submissionCreateRequest.getTotal() == submissionCreateRequest.getPass() ? contestProblem.getScore() : 0)
                         .build();
 
-                log.info("contestSubmissionCreateRequest: {}", contestSubmissionCreateRequest);
-
                 String contestSubmissionJson = objectMapper.writeValueAsString(contestSubmissionCreateRequest);
                 kafkaTemplate.send(KafkaConst.CONTEST_SUBMISSION_CREATE_TOPIC, contestSubmissionJson);
-
             }
-
-            log.info("problemDocumentUpdateAcceptRateRequest: {}", problemDocumentUpdateAcceptRateRequest);
 
             String submissionTestCaseRequestJson = objectMapper.writeValueAsString(submissionTestCaseCreateRequest);
             String problemDocumentUpdateAcceptRateRequestJson = objectMapper.writeValueAsString(problemDocumentUpdateAcceptRateRequest);
@@ -306,6 +427,73 @@ public class SubmissionServiceImpl implements SubmissionService {
         } catch (Exception e) {
             log.error("Kafka message xử lý thất bại: {}", json, e);
         }
+    }
+
+    private static int getMaxCpuTime(List<SubmissionResponse> responses) {
+        return (int) responses.stream()
+                .filter(r -> r.getRun() != null)
+                .mapToLong(r -> r.getRun().getCpuTime())
+                .max()
+                .orElse(0);
+    }
+
+    private static double getMaxMemory(List<SubmissionResponse> responses) {
+        return responses.stream()
+                .filter(r -> r.getRun() != null)
+                .mapToLong(r -> r.getRun().getMemory())
+                .mapToDouble(AppUtil::bytesToMegabytes)
+                .max()
+                .orElse(0);
+    }
+
+    private OverallResponse evaluateOverallStatus(List<SubmissionResponse> responses) {
+        int total = responses.size();
+        int pass = 0;
+
+        for (SubmissionResponse r : responses) {
+            var run = r.getRun();
+
+            if (run != null && run.getCode() != null && run.getCode() != 0) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.COMPILE_ERROR.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(total).build();
+            }
+
+            if (run != null && "RE".equals(run.getStatus())) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.RUNTIME_ERROR.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(total).build();
+            }
+
+            if (run != null && "TO".equals(run.getStatus())) {
+                return OverallResponse.builder()
+                        .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
+                        .message(run.getStderr())
+                        .pass(0).total(total).build();
+            }
+
+            if (SubmissionStatus.ACCEPTED == r.getStatus()) {
+                pass++;
+            }
+        }
+
+        if (pass == total) {
+            return OverallResponse.builder()
+                    .status(SubmissionStatus.ACCEPTED.getValue())
+                    .message(null)
+                    .pass(pass)
+                    .total(total)
+                    .build();
+        }
+
+        return OverallResponse.builder()
+                .status(SubmissionStatus.WRONG_ANSWER.getValue())
+                .message(null)
+                .pass(pass)
+                .total(total)
+                .build();
     }
 
     @Override
@@ -358,95 +546,17 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .build();
     }
 
-
-    private static int getMaxCpuTime(List<SubmissionResponse> responses) {
-        return (int) responses.stream()
-                .filter(r -> r.getRun() != null)
-                .mapToLong(r -> r.getRun().getCpuTime())
-                .max()
-                .orElse(0);
-    }
-
-    private static int getMaxMemory(List<SubmissionResponse> responses) {
-        return (int) responses.stream()
-                .filter(r -> r.getRun() != null)
-                .mapToLong(r -> r.getRun().getMemory())
-                .max()
-                .orElse(0);
-    }
-
-    private OverallResponse evaluateOverallStatus(List<SubmissionResponse> responses) {
-        int total = responses.size();
-        int pass = 0;
-
-        for (SubmissionResponse r : responses) {
-            var run = r.getRun();
-
-            if (run != null && run.getCode() != null && run.getCode() != 0) {
-                return OverallResponse.builder()
-                        .status(SubmissionStatus.COMPILE_ERROR.getValue())
-                        .message(run.getStderr())
-                        .pass(0).total(0).build();
-            }
-
-            if (run != null && "RE".equals(run.getStatus())) {
-                return OverallResponse.builder()
-                        .status(SubmissionStatus.RUNTIME_ERROR.getValue())
-                        .message(run.getStderr())
-                        .pass(0).total(0).build();
-            }
-
-            if (run != null && "TO".equals(run.getStatus())) {
-                return OverallResponse.builder()
-                        .status(SubmissionStatus.TIME_LIMIT_EXCEEDED.getValue())
-                        .message(run.getStderr())
-                        .pass(0).total(0).build();
-            }
-
-            if (SubmissionStatus.ACCEPTED == r.getStatus()) {
-                pass++;
-            }
-        }
-
-
-        if (pass == total) {
-            return OverallResponse.builder()
-                    .status(SubmissionStatus.ACCEPTED.getValue())
-                    .message(null)
-                    .pass(pass)
-                    .total(total)
-                    .build();
-        }
-
-        return OverallResponse.builder()
-                .status(SubmissionStatus.WRONG_ANSWER.getValue())
-                .message(null)
-                .pass(pass)
-                .total(total)
+    @Override
+    public ListBasicResultSubmissionResponse getUserSubmission(String userId, int problemId, Pageable pageable) {
+        Page<Submission> submissions = submissionRepo.getSubmissionByUserIdAndProblemId(userId, problemId, pageable);
+        List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.stream()
+                .map(SubmissionMapper::toDto)
+                .toList();
+        log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);
+        return ListBasicResultSubmissionResponse.builder()
+                .page(submissions.getNumber()+1)
+                .totalPages(submissions.getTotalPages())
+                .submissions(basicResultSubmissionResponses)
                 .build();
     }
-
-    private SubmissionResponse executeCode(String url, HttpEntity<Map<String, Object>> request, TestCase testCase) {
-        try {
-            SubmissionResponse response = restTemplate.postForObject(url, request, SubmissionResponse.class);
-            if (response == null) {
-                return SubmissionResponse.builder()
-                        .status(SubmissionStatus.NULL_RESPONSE)
-                        .input(testCase.getInput())
-                        .expectOutput(testCase.getOutput())
-                        .build();
-            }
-            return response;
-        } catch (Exception e) {
-            log.error("Error while submit: {}", e.getMessage());
-            return SubmissionResponse.builder()
-                    .status(SubmissionStatus.ERROR)
-                    .input(testCase.getInput())
-                    .expectOutput(testCase.getOutput())
-                    .build();
-        }
-    }
-
-
-
 }

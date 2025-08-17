@@ -82,6 +82,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public void updateUserDetailsByUserId(String userId, UserDetailUpdateRequest request) throws IOException {
+        log.info("user detail update request: {}", request);
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 

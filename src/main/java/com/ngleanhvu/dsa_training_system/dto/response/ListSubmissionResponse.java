@@ -8,6 +8,7 @@ import java.util.List;
 @Data
 @Builder
 public class ListSubmissionResponse {
+    private String submissionId;
     private String sourcecode;
     private String language;
     private OverallResponse status;

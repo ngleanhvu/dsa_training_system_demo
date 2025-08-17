@@ -4,9 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.ngleanhvu.dsa_training_system.dto.request.LoginRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.RefreshRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.RegisterRequest;
+import com.ngleanhvu.dsa_training_system.dto.request.*;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.LoginResponse;
 import com.ngleanhvu.dsa_training_system.exception.PermissionException;
@@ -177,4 +175,33 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest) {
+        authService.forgotPassword(forgotPasswordRequest.getEmail());
+        var apiResponse = ApiResponse.builder()
+                .message("Forgot password success")
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpRequest otpRequest) {
+        authService.verifyOtp(otpRequest.getOtp(), otpRequest.getEmail());
+        var apiResponse = ApiResponse.builder()
+                .message("Verify otp success")
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+        authService.resetPassword(resetPasswordRequest.getPassword(), resetPasswordRequest.getConfirmPassword(), resetPasswordRequest.getEmail(), resetPasswordRequest.getOtp());
+        var apiResponse = ApiResponse.builder()
+                .message("Reset password success")
+                .status(HttpStatus.OK.name())
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
 }

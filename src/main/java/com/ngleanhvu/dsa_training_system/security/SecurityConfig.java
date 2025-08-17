@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,11 +18,17 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.security.interfaces.RSAPublicKey;
+import java.util.Arrays;
 import java.util.List;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -40,14 +47,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf().disable()
-                .cors()
-                .and()
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/refresh").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/logout").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/..").permitAll()
+                        .requestMatchers("/ws/**").permitAll() // cho WS endpoint
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auths/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/login/admin").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/google/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auths/github/login").permitAll()
@@ -56,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/discuss/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/programming-languages**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/contests/search**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stats/users/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/difficulties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/topics").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users**").permitAll()
@@ -102,18 +108,31 @@ public class SecurityConfig {
 
 
     @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.addAllowedOrigin("http://localhost:5173");
+        configuration.addAllowedOrigin("http://localhost:5174");
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "Origin",
+                "Cache-Control",
+                "Pragma",
+                "X-Requested-With"
+        ));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE","PATCH", "OPTIONS"));
+        configuration.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
+        configuration.setAllowCredentials(true);
 
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH") // các phương thức được phép
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
-            }
-        };
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/ws/**", configuration);
+
+        return source;
     }
 
 }

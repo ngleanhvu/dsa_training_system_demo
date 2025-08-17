@@ -1,8 +1,10 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
-import com.ngleanhvu.dsa_training_system.converter.OAuth2ProviderConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,7 +26,6 @@ public class AuthOAuth2 {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Convert(converter = OAuth2ProviderConverter.class)
     @Enumerated(EnumType.STRING)
     private OAuth2Provider provider = OAuth2Provider.GOOGLE;
 
@@ -36,9 +37,9 @@ public class AuthOAuth2 {
 
     private int status = 1;
 
-    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 }

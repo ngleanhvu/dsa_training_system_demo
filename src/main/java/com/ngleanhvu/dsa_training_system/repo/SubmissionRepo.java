@@ -5,6 +5,8 @@ import com.ngleanhvu.dsa_training_system.dto.request.SubmissionCountProjection;
 import com.ngleanhvu.dsa_training_system.dto.request.TopicSubmissionStat;
 import com.ngleanhvu.dsa_training_system.entity.Submission;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -64,5 +66,27 @@ public interface SubmissionRepo extends JpaRepository<Submission, Integer>, JpaS
     ORDER BY MONTH(s.created_at)
 """, nativeQuery = true)
     List<Object[]> getSubmissionByEachYear(@Param("year") int year);
+
+
+    @Query("SELECT s FROM Submission s WHERE s.user.userId = :userId AND s.problem.problemId = :problemId")
+    Page<Submission> getSubmissionByUserIdAndProblemId(@Param("userId") String userId,
+                                                       @Param("problemId") Integer problemId,
+                                                       Pageable pageable);
+
+
+
+    @Query(value = """
+    SELECT DATE(s.submitted_at) AS submitted_date,
+           COUNT(s.submission_id) AS submission_count
+    FROM submissions s
+    JOIN users u ON s.user_id = u.user_id
+    WHERE u.email = :email 
+      AND YEAR(s.submitted_at) = :year
+    GROUP BY DATE(s.submitted_at)
+    ORDER BY submitted_date
+""", nativeQuery = true)
+    List<Object[]> statsSubmissionByUserEmail(@Param("email") String email,
+                                              @Param("year") int year);
+
 
 }

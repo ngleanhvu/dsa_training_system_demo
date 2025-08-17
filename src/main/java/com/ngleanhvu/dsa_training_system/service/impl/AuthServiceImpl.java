@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
 import java.util.List;
@@ -235,7 +236,13 @@ public class AuthServiceImpl implements AuthService {
                         .status(1)
                         .build()));
 
-        return generateLoginResponse(user);
+        LoginResponse loginResponse = generateLoginResponse(user);
+        loginResponse.setUser(UserResponse.builder()
+                .avatar(user.getAvatar())
+                .displayName(user.getDisplayName())
+                .role(user.getRole().name())
+                .email(user.getEmail()).build());
+        return loginResponse;
     }
 
     @Override
@@ -304,6 +311,71 @@ public class AuthServiceImpl implements AuthService {
 
         return loginResponse;
     }
+
+    @Override
+    public void forgotPassword(String email) {
+        String key = RedisKey.generateForgotPasswordKey(email);
+        stringRedisTemplate.delete(key);
+        SecureRandom secureRandom = new SecureRandom();
+        int otp = secureRandom.nextInt(900000) + 100000;
+
+        stringRedisTemplate.opsForValue()
+                .set(key, String.valueOf(otp), 5, TimeUnit.MINUTES);
+
+        String subject = "Password Reset Verification";
+        String body = """
+                    Hello,
+                    
+                    We received a request to reset the password for your account.
+                    Your One-Time Password (OTP) is: %s
+                    
+                    This OTP is valid for 5 minutes only. 
+                    For your security, please do not share this code with anyone.
+                    
+                    If you did not request a password reset, you can safely ignore this email.
+                    
+                    Best regards,
+                    Support Team
+                    """.formatted(otp);
+
+        emailService.sendEmail(email, subject, body);
+
+    }
+
+    @Override
+    public void verifyOtp(String otp,
+                          String email) {
+        String key = RedisKey.generateForgotPasswordKey(email);
+        String otpValue = stringRedisTemplate.opsForValue().get(key);
+        if (otpValue == null || otpValue.isBlank()) {
+            throw new InvalidValueException("OTP is expired");
+        }
+        if (!otpValue.trim().equals(otp.trim())) {
+            throw new InvalidValueException("Incorrect otp");
+        }
+        String resetPasswordKey = RedisKey.generateResetPasswordKey(otp);
+        stringRedisTemplate.opsForValue().set(resetPasswordKey, "1");
+    }
+
+    @Override
+    public void resetPassword(String newPassword,
+                              String confirmPassword,
+                              String otp,
+                              String email) {
+        String key = RedisKey.generateResetPasswordKey(otp);
+        if (!stringRedisTemplate.hasKey(key)) {
+            throw new InvalidValueException("You don't have verified otp");
+        }
+        if (!newPassword.equals(confirmPassword)) {
+            throw new InvalidValueException("New password doesn't match");
+        }
+        stringRedisTemplate.delete(key);
+        AuthLocal authLocal = authLocalRepo.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Auth local","email",email));
+        authLocal.setPasswordHash(passwordEncoder.encode(newPassword));
+        authLocalRepo.save(authLocal);
+    }
+
 
     private LoginResponse generateLoginResponse(User user) {
         AuthRecord authRecord = new AuthRecord(user.getUserId(), user.getRole());

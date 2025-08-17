@@ -92,7 +92,7 @@ public class UserController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @PutMapping(value = "/update/{email}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateUser(@Valid @ModelAttribute UserDetailUpdateRequest userDetailUpdateRequest,
                                         @PathVariable("email") String email) throws IOException {

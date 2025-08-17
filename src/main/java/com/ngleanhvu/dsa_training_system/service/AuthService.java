@@ -17,4 +17,11 @@ public interface AuthService {
     LoginResponse loginWithGoogle(GoogleIdToken.Payload payload);
     LoginResponse loginWithGithub(String accessToken);
     LoginResponse loginWithAdminAccount(LoginRequest loginRequest) throws InvalidCredentialsException, PermissionException;
+    void forgotPassword(String email);
+    void verifyOtp(String otp,
+                   String email);
+    void resetPassword(String newPassword,
+                       String confirmPassword,
+                       String email,
+                       String otp);
 }
