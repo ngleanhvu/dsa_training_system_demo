@@ -197,7 +197,7 @@ public class AuthController {
 
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
-        authService.resetPassword(resetPasswordRequest.getPassword(), resetPasswordRequest.getConfirmPassword(), resetPasswordRequest.getEmail(), resetPasswordRequest.getOtp());
+        authService.resetPassword(resetPasswordRequest.getPassword(), resetPasswordRequest.getConfirmPassword(), resetPasswordRequest.getOtp(), resetPasswordRequest.getEmail());
         var apiResponse = ApiResponse.builder()
                 .message("Reset password success")
                 .status(HttpStatus.OK.name())

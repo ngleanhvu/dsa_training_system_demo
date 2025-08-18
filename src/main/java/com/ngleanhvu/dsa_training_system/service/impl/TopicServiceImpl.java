@@ -32,7 +32,9 @@ public class TopicServiceImpl implements TopicService {
                             .topicName(t.getName())
                             .build())
                     .toList();
-            log.debug("topicResponses: {}", topicResponses);
+            String key = RedisKey.generateTopicKey();
+            String value = objectMapper.writeValueAsString(topicResponses);
+            stringRedisTemplate.opsForValue().set(key, value);
         }
         return topicResponses;
     }

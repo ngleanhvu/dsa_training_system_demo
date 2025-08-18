@@ -363,6 +363,7 @@ public class AuthServiceImpl implements AuthService {
                               String otp,
                               String email) {
         String key = RedisKey.generateResetPasswordKey(otp);
+        log.info("reset password key: {}", key);
         if (!stringRedisTemplate.hasKey(key)) {
             throw new InvalidValueException("You don't have verified otp");
         }

@@ -52,10 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/..").permitAll()
                         .requestMatchers("/ws/**").permitAll() // cho WS endpoint
-                        .requestMatchers(HttpMethod.GET, "/api/v1/auths/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/login/admin").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/google/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auths/github/login").permitAll()
+                        .requestMatchers( "/api/v1/auths/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/discuss/search**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/discuss/**").permitAll()
