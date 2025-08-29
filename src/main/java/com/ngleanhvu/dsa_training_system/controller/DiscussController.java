@@ -29,10 +29,10 @@ public class DiscussController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping("/create")
     public ResponseEntity<?> createDiscuss(@Valid @RequestBody DiscussCreateRequest discussCreateRequest,
-                                           @RequestHeader("Authorization") String authHeader) {
-        log.info("Create discuss: {}", discussCreateRequest);
-        String userId = jwtUtil.getUserIdFromToken(authHeader);
-        log.info("User id: {}", userId);
+                                           @RequestHeader("Authorization") String token) {
+        log.info("discuss create request: {}", discussCreateRequest);
+        String userId = jwtUtil.getUserIdFromToken(token);
+        log.info("userId: {}", userId);
         discussCreateRequest.setUserId(userId);
         discussService.createDiscuss(discussCreateRequest);
         var response = ApiResponse.builder()
@@ -49,16 +49,8 @@ public class DiscussController {
                                            @RequestParam(required = false, defaultValue = "1") int page,
                                            @RequestParam(required = false, defaultValue = "10") int size,
                                            @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        log.info("Search discusses: {}", discussFilterRequest);
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setDirection(sortDir);
-        log.info("Paging search: {}", pagingSearch);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var response = discussService.getDiscusses(discussFilterRequest, pagingSearch);
-
         var apiResponse = ApiResponse.builder()
                 .message("Get discusses success")
                 .metadata(response)
@@ -74,14 +66,8 @@ public class DiscussController {
                                                           @RequestParam(required = false, defaultValue = "10") int size,
                                                           @RequestParam(required = false, defaultValue = "desc") String sortDir,
                                                           @RequestHeader("Authorization") String token) {
-        log.info("Search discusses: {}", discussFilterRequest);
         String userId = jwtUtil.getUserIdFromToken(token);
-        log.info("User id: {}", userId);
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setSortBy(AppUtil.changeSortBy(sortBy));
-        pagingSearch.setDirection(sortDir);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(AppUtil.changeSortBy(sortBy), sortDir, Math.max(page-1,0), size);
         var response = discussService.getDiscussesWithUser(discussFilterRequest,userId,pagingSearch);
         var apiResponse = ApiResponse.builder()
                 .message("Get discusses success")
@@ -91,15 +77,12 @@ public class DiscussController {
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-
-    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PutMapping("/{discussId}")
     public ResponseEntity<?> updateDiscuss(@RequestBody DiscussUpdateRequest discussUpdateRequest,
                                            @PathVariable("discussId") Integer discussId,
                                            @RequestHeader("Authorization") String token) {
-
+        log.info("discuss request: {}", discussUpdateRequest);
         String userId = jwtUtil.getUserIdFromToken(token);
-
         discussUpdateRequest.setUserId(userId);
 
         discussService.updateDiscuss(discussId, discussUpdateRequest);

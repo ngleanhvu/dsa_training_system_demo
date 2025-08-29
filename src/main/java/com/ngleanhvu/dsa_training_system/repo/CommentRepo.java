@@ -127,5 +127,8 @@ public interface CommentRepo extends JpaRepository<Comment, Integer> {
                                                       @Param("userId") String userId,
                                                       Pageable pageable);
 
+
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.discuss.discussId = :discussId")
+    long countCommentByDiscussId(@Param("discussId") Integer discussId);
 }
 

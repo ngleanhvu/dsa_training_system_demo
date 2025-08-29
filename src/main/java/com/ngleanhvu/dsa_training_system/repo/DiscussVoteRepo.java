@@ -11,4 +11,7 @@ public interface DiscussVoteRepo extends JpaRepository<DiscussVote, Integer> {
 
     @Query("SELECT dv FROM DiscussVote dv WHERE dv.discuss.discussId = :discussId")
     Optional<DiscussVote> findByDiscussId(@Param("discussId") int discussId);
+
+    @Query("SELECT dv FROM DiscussVote  dv WHERE dv.discuss.discussId = :discussId AND dv.user.userId = :userId")
+    Optional<DiscussVote> findByDiscussIdAndUserId(@Param("discussId") int discussId, @Param("userId") String userId);
 }

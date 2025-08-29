@@ -107,11 +107,11 @@ public class AuthServiceImpl implements AuthService {
         MultipartFile avatar = registerRequest.getAvatar();
 
         if (authLocalRepo.findByEmail(email).isPresent()) {
-            throw new InvalidValueException("Auth local with this email already exists");
+            throw new InvalidValueException("Email đã được sử dụng");
         }
 
         if (!confirmPassword.equals(password)) {
-            throw new InvalidValueException("Password not match");
+            throw new InvalidValueException("Mật khẩu và xác nhận mật khẩu không ");
         }
 
         String avatarUrl = s3Service.upload(avatar);

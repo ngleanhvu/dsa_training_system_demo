@@ -7,8 +7,8 @@ import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,7 +27,6 @@ public class SubmissionController {
         String userId = jwtUtil.getUserIdFromToken(token);
         submissionRequest.setUserId(userId);
         var submissionResponse = submissionService.submit(submissionRequest);
-
         ApiResponse<?> response = ApiResponse.builder()
                 .message("Submit test cases success")
                 .status(HttpStatus.OK.name())
@@ -57,13 +56,9 @@ public class SubmissionController {
     public ResponseEntity<?> getSubmissionsForAdmin(@RequestBody SubmissionFilterRequest submissionFilterRequest,
                                                     @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
                                                     @RequestParam(required = false, defaultValue = "1") int page,
-                                                    @RequestParam(required = false, defaultValue = "5") int size,
+                                                    @RequestParam(required = false, defaultValue = "10") int size,
                                                     @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(Math.max(0, page - 1));
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var responses = submissionService.getBasicSubmissionResponses(submissionFilterRequest, pagingSearch);
         var apiResponse = ApiResponse.builder()
                 .message("Get submissions success")
@@ -80,11 +75,7 @@ public class SubmissionController {
                                                            @RequestParam(required = false, defaultValue = "1") int page,
                                                            @RequestParam(required = false, defaultValue = "5") int size,
                                                            @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(Math.max(0, page - 1));
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         String userId = jwtUtil.getUserIdFromToken(token);
         var response = submissionService.getUserSubmission(userId, problemId, pagingSearch.toPageable());
         var apiResponse = ApiResponse.builder()

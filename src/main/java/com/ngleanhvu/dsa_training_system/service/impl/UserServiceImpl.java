@@ -39,44 +39,22 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserByEmail(String email) {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        log.info("User: {}", user);
-
-        UserResponse userResponse = UserMapper.toDto(user);
-
-        log.info("UserResponse: {}", userResponse);
-
-        return userResponse;
+        return UserMapper.toDto(user);
     }
 
     @Override
     public UserResponse getUserById(String userId) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-        log.info("User: {}", user);
-
-        UserResponse userResponse = UserMapper.toDto(user);
-
-        log.info("UserResponse: {}", userResponse);
-
-        return userResponse;
+        return UserMapper.toDto(user);
     }
 
     @Override
     public UserDetailResponse getProfile(String email) {
-        log.info("email: {}", email);
         User user = userRepo.findUserDetailsByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-        log.info("User: {}", user);
-
         UserResponse userResponse = UserMapper.toDto(user);
-
-        UserDetailResponse userDetailResponse = UserMapper.toDetailDto(user, userResponse);
-
-        log.info("UserDetailResponse: {}", userDetailResponse);
-
-        return userDetailResponse;
+        return UserMapper.toDetailDto(user, userResponse);
     }
 
     @Transactional
@@ -85,25 +63,19 @@ public class UserServiceImpl implements UserService {
         log.info("user detail update request: {}", request);
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
         UserDetails userDetails = userDetailRepo.findById(userId).orElse(null);
-
         if (request.getDisplayName() != null) {
             user.setDisplayName(request.getDisplayName());
         }
-
         if (request.getAvatar() != null) {
             String avatarUrl = s3Service.upload(request.getAvatar());
             user.setAvatar(avatarUrl);
         }
-
         userRepo.save(user);
-
         if (userDetails == null) {
             userDetails = new UserDetails();
             userDetails.setUser(user);
         }
-
         userDetails.setLastName(request.getLastName());
         userDetails.setFirstName(request.getFirstName());
         userDetails.setAddress(request.getAddress());
@@ -112,7 +84,6 @@ public class UserServiceImpl implements UserService {
         userDetails.setPhoneNumber(request.getPhoneNumber());
         userDetails.setDateOfBirth(request.getDateOfBirth());
         userDetails.setGender(UserDetails.Gender.valueOf(request.getGender()));
-
         userDetailRepo.save(userDetails);
     }
 
@@ -121,31 +92,19 @@ public class UserServiceImpl implements UserService {
     public void updateUserDetailsByEmail(String email, UserDetailUpdateRequest userDetailUpdateRequest) throws IOException {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        log.info("User: {}", user);
-
         UserDetails userDetails = userDetailRepo.findByEmail(email).orElse(null);
-
-        log.info("UserDetail: {}", userDetails);
-
         if (userDetailUpdateRequest.getDisplayName() != null) {
             user.setDisplayName(userDetailUpdateRequest.getDisplayName());
         }
-
         if (userDetailUpdateRequest.getAvatar() != null) {
             String avatarUrl = s3Service.upload(userDetailUpdateRequest.getAvatar());
             user.setAvatar(avatarUrl);
         }
-
         userRepo.save(user);
-
-        log.info("User {}", user);
-
         if (userDetails == null) {
             userDetails = new UserDetails();
             userDetails.setUser(user);
         }
-
         userDetails.setLastName(userDetailUpdateRequest.getLastName());
         userDetails.setFirstName(userDetailUpdateRequest.getFirstName());
         userDetails.setAddress(userDetailUpdateRequest.getAddress());
@@ -153,12 +112,7 @@ public class UserServiceImpl implements UserService {
         userDetails.setLinkedinUrl(userDetailUpdateRequest.getLinkedinUrl());
         userDetails.setPhoneNumber(userDetailUpdateRequest.getPhoneNumber());
         userDetails.setDateOfBirth(userDetailUpdateRequest.getDateOfBirth());
-        String gender = userDetailUpdateRequest.getGender();
-        log.info("Gender: {}", gender);
         userDetails.setGender(UserDetails.Gender.valueOf(userDetailUpdateRequest.getGender().toUpperCase()));
-
-        log.info("UserDetails: {}", userDetails);
-
         userDetailRepo.save(userDetails);
     }
 
@@ -167,11 +121,7 @@ public class UserServiceImpl implements UserService {
     public void updateUserByUserId(String userId, UserUpdateRequest userUpdateRequest) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-        log.info("User: {}", user);
-
         user.setDisplayName(userUpdateRequest.getDisplayName());
-
         userRepo.save(user);
     }
 
@@ -179,18 +129,14 @@ public class UserServiceImpl implements UserService {
     public ListUserResponse getUsers(String keyword, PagingSearch pagingSearch) {
         Specification<User> specification = UserSpecification.hasKeyword(keyword);
         Page<User> userPage = userRepo.findAll(specification, pagingSearch.toPageable());
-        log.info("UserPage: {}", userPage);
         List<UserResponse> userResponses = userPage
                 .getContent().stream().map(UserMapper::toDto)
                 .toList();
-        log.info("UserResponse: {}", userResponses);
-        ListUserResponse listUserResponse = ListUserResponse.builder()
+        return ListUserResponse.builder()
                 .users(userResponses)
                 .page(userPage.getNumber()+1)
                 .totalPages(userPage.getTotalPages())
                 .build();
-        log.info("ListUserResponse: {}", listUserResponse);
-        return listUserResponse;
     }
 
 

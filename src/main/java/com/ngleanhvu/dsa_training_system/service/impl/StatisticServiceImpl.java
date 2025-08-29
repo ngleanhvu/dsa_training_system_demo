@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -105,9 +104,7 @@ public class StatisticServiceImpl implements StatisticService {
     public List<DifficultUserResponse> getDifficultUserResponse(String email) {
         List<Object[]> response = problemRepo.statsProblemByDifficultAndUserEmail(email);
 
-        log.info("getDifficultUserResponse: {}", response);
-
-        List<DifficultUserResponse> difficultUserResponses = response.stream()
+        return response.stream()
                 .map(d -> DifficultUserResponse.builder()
                         .difficultId((Integer) d[0])
                         .difficultName((String) d[1])
@@ -115,37 +112,29 @@ public class StatisticServiceImpl implements StatisticService {
                         .total((Long) d[3])
                         .build())
                 .toList();
-        return difficultUserResponses;
     }
 
     @Override
     public ProblemUserSolved getProblemUserSolved(String email) {
         List<Object[]> response =  problemRepo.statsProblemSolvedByUserEmail(email);
 
-        log.info("getProblemUserSolved: {}", response);
-
-        ProblemUserSolved problemUserSolved = ProblemUserSolved.builder()
+        return ProblemUserSolved.builder()
                 .solved((Long) response.getFirst()[0])
                 .total((Long) response.getFirst()[1])
                 .build();
-
-        return problemUserSolved;
     }
 
     @Override
     public List<SubmissionCountResponse> getSubmissionCountResponse(String email,
                                                                     Integer year) {
         List<Object[]> response = submissionRepo.statsSubmissionByUserEmail(email, year);
-        log.info("getSubmissionCountResponse: {}", response);
 
-        List<SubmissionCountResponse> submissionCountResponses = response.stream()
+        return response.stream()
                 .map(s -> SubmissionCountResponse.builder()
-                        .timestamp(((java.sql.Date) s[0]).toLocalDate()) // ✅ convert sql.Date -> LocalDate
-                        .count(((Number) s[1]).longValue())             // tránh cast nhầm Long/BigInteger
+                        .timestamp(((java.sql.Date) s[0]).toLocalDate())
+                        .count(((Number) s[1]).longValue())
                         .build())
                 .toList();
-
-        return submissionCountResponses;
     }
 
 

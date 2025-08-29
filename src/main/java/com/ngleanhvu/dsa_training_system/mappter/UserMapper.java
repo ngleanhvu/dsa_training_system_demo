@@ -23,12 +23,13 @@ public class UserMapper {
                     .address("")
                     .firstName("")
                     .lastName("")
-                    .gender(user.getUserDetails().getGender().name())
+                    .gender(UserDetails.Gender.OTHER.name())
                     .phoneNumber("")
                     .githubUrl("")
                     .linkedinUrl("")
                     .build();
         }
+
 
         return UserDetailResponse.builder()
                 .user(userResponse)

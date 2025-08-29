@@ -14,7 +14,7 @@ public interface DiscussService {
     void toggleVote(String userId, Integer discussId);
     void deleteDiscuss(String userId, Integer discussId);
     void updateDiscuss(Integer discussId, DiscussUpdateRequest request);
-    DiscussForUpdateResponse getDiscussForUpdate(Integer discussId);
+    DiscussDetailResponse getDiscussForUpdate(Integer discussId);
     ListDiscussResponse getDiscussesWithUser(DiscussFilterRequest discussFilterRequest,
                                              String userId,
                                              PagingSearch pagingSearch);

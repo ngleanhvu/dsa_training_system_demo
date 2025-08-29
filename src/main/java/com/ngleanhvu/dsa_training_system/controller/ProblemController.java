@@ -4,12 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemSearchAdminRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ProblemUpdateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.SortRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.elasticsearch.ProblemSearchRequest;
 import com.ngleanhvu.dsa_training_system.elasticsearch.ProblemSearchService;
+import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.ProblemService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class ProblemController {
 
     private final ProblemService problemService;
     private final ProblemSearchService problemSearchService;
+    private final JwtUtil jwtUtil;
 
     @Value("${page.size}")
     private int pageSize;
@@ -34,7 +36,6 @@ public class ProblemController {
     @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createProblem(@Valid @RequestBody ProblemCreateRequest problemCreateRequest) throws JsonProcessingException {
-        log.info("Creating problem: {}", problemCreateRequest);
         problemService.createProblem(problemCreateRequest);
         var response = ApiResponse.create("Create new problem success",
                 HttpStatus.CREATED.name());
@@ -46,16 +47,25 @@ public class ProblemController {
                                            @RequestParam(required = false, defaultValue = "problemId") String sortBy,
                                            @RequestParam(required = false, defaultValue = "asc") String sortDirection,
                                            @RequestParam(required = false, defaultValue = "0") Integer page) {
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDirection, Math.max(page-1,0), 10);
+        var response = problemSearchService.search(problemSearchRequest, pagingSearch);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Search problem success")
+                .metadata(response)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
 
-        log.info("Searching problem: {}", problemSearchRequest);
-
-        PagingSearch pagingSearch = new PagingSearch();
-
-        pagingSearch.setSize(pageSize);
-        pagingSearch.setPage(Math.max(page-1, 0));
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setDirection(sortDirection);
-
+    @PostMapping("/search/credentials")
+    public ResponseEntity<?> searchProblem(@RequestBody ProblemSearchRequest problemSearchRequest,
+                                           @RequestHeader("Authorization") String token,
+                                           @RequestParam(required = false, defaultValue = "problemId") String sortBy,
+                                           @RequestParam(required = false, defaultValue = "asc") String sortDirection,
+                                           @RequestParam(required = false, defaultValue = "0") Integer page) {
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDirection, Math.max(page-1,0), 10);
+        String userId = jwtUtil.getUserIdFromToken(token);
+        problemSearchRequest.setUserId(userId);
         var response = problemSearchService.search(problemSearchRequest, pagingSearch);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
@@ -71,17 +81,8 @@ public class ProblemController {
                                                 @RequestParam(required = false, defaultValue = "problemId") String sortBy,
                                                 @RequestParam(required = false, defaultValue = "asc") String sortDirection,
                                                 @RequestParam(required = false, defaultValue = "0") Integer page) {
-        log.info("Searching problem admin: {}", problemSearchRequest);
-        PagingSearch pagingSearch = new PagingSearch();
-
-        pagingSearch.setSize(pageSize);
-        pagingSearch.setPage(Math.max(page - 1, 0));
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setDirection(sortDirection);
-
-        log.info("Paging search: {}", pagingSearch);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDirection, Math.max(page-1,0), 10);
         var response = problemService.getProblems(problemSearchRequest, pagingSearch);
-        log.info("Search problem response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .message("Search problem success")
@@ -133,6 +134,18 @@ public class ProblemController {
                 .message("Problem deleted")
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/count-solved")
+    public ResponseEntity<?> getCountProblemSolved(@RequestHeader("Authorization") String token) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        var response = problemService.countSolvedProblems(userId);
+        var apiResponse = ApiResponse.builder()
+                .status(HttpStatus.OK.name())
+                .message("Problem count")
+                .metadata(response)
+                .build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
 }

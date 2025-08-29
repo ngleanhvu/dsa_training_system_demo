@@ -51,6 +51,5 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
     public void afterHandshake(org.springframework.http.server.ServerHttpRequest request,
                                org.springframework.http.server.ServerHttpResponse response,
                                WebSocketHandler wsHandler, Exception exception) {
-        // Không cần xử lý
     }
 }

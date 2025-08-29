@@ -1,5 +1,7 @@
 package com.ngleanhvu.dsa_training_system.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngleanhvu.dsa_training_system.dto.request.TestCaseCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.TestCaseUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ListTestCaseResponse;
@@ -22,10 +24,11 @@ import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +39,7 @@ public class TestCaseServiceImpl implements TestCaseService {
 
     private final TestCaseRepo testCaseRepo;
     private final ProblemRepo problemRepo;
+    private final ObjectMapper objectMapper;
 
     @PersistenceContext
     private final EntityManager entityManager;
@@ -63,8 +67,6 @@ public class TestCaseServiceImpl implements TestCaseService {
         Problem problem = problemRepo.findById(problemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
-        log.info("Test cases: {}", requests);
-
         List<TestCase> testCases = requests.stream()
                 .map(t -> TestCaseMapper.mapToTestCase(t, problem))
                 .toList();
@@ -78,8 +80,6 @@ public class TestCaseServiceImpl implements TestCaseService {
 
         List<TestCase> testCaseList = testCases.getContent();
 
-        log.info("Test cases: {}", testCaseList);
-
         List<TestCaseResponse> testCaseResponses = testCaseList.stream()
                 .map(t -> TestCaseResponse.builder()
                         .testCaseId(t.getTestCaseId())
@@ -89,15 +89,12 @@ public class TestCaseServiceImpl implements TestCaseService {
                         .build())
                 .toList();
 
-        log.info("Test caseResponses: {}", testCaseResponses);
 
-        ListTestCaseResponse listTestCaseResponse = ListTestCaseResponse.builder()
+        return ListTestCaseResponse.builder()
                 .testCases(testCaseResponses)
                 .page(testCases.getNumber()+1)
                 .totalPages(testCases.getTotalPages())
                 .build();
-        log.info("Test caseResponse: {}", listTestCaseResponse);
-        return listTestCaseResponse;
     }
 
     @Transactional
@@ -129,20 +126,17 @@ public class TestCaseServiceImpl implements TestCaseService {
     public TestCaseResponse getTestCaseById(int testCaseId) {
         TestCase testCase = testCaseRepo.findById(testCaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("TestCase", "id", String.valueOf(testCaseId)));
-        log.info("Test case: {}", testCase);
-        TestCaseResponse  testCaseResponse = TestCaseResponse.builder()
+
+        return TestCaseResponse.builder()
                 .testCaseId(testCaseId)
                 .input(testCase.getInput())
                 .output(testCase.getOutput())
                 .problemId(testCase.getProblem().getProblemId())
                 .build();
-        log.info("Test caseResponse: {}", testCaseResponse);
-        return testCaseResponse;
     }
 
     @Override
     public ListTestCaseResponse getAllTestCases(Integer problemId, PagingSearch pagingSearch) {
-        log.info("problemId: {}", problemId);
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<TestCase> query = cb.createQuery(TestCase.class);
@@ -150,7 +144,6 @@ public class TestCaseServiceImpl implements TestCaseService {
         List<Predicate> predicates = new ArrayList<>();
 
         if (problemId != 0) {
-            log.info("problemId: {}", problemId);
             predicates.add(cb.equal(root.get("problem").get("problemId"), problemId));
         }
 
@@ -177,8 +170,6 @@ public class TestCaseServiceImpl implements TestCaseService {
                         .build())
                 .toList();
 
-        log.info("size: {}", testCaseResponses.size());
-
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<TestCase> countRoot = countQuery.from(TestCase.class);
 
@@ -194,9 +185,6 @@ public class TestCaseServiceImpl implements TestCaseService {
 
         int totalPages = (int) Math.ceil((double) total / size);
 
-        log.info("totalPages: {}", totalPages);
-        log.info("total: {}", total);
-        log.info("size: {}", size);
 
         return ListTestCaseResponse.builder()
                 .totalPages(totalPages)
@@ -205,6 +193,78 @@ public class TestCaseServiceImpl implements TestCaseService {
                 .build();
     }
 
+    @Transactional
+    @Override
+    public void uploadTestCase(Integer problemId, MultipartFile file) throws IOException {
+        Problem problem = problemRepo.findById(problemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
 
+        JsonNode root = objectMapper.readTree(file.getInputStream());
+
+        List<TestCase> testCases = new ArrayList<>();
+
+        if (root.isArray()) {
+            // Trường hợp file là danh sách nhiều test case
+            for (JsonNode node : root) {
+                testCases.add(buildTestCase(node, problem));
+            }
+        } else if (root.isObject()) {
+            // Trường hợp file chỉ có 1 test case
+            testCases.add(buildTestCase(root, problem));
+        } else {
+            throw new IllegalArgumentException("Invalid JSON format for test case file");
+        }
+
+        testCaseRepo.saveAll(testCases);
+    }
+
+    private TestCase buildTestCase(JsonNode node, Problem problem) {
+        TestCase testCase = new TestCase();
+        testCase.setInput(flatten(node.get("input")));
+        testCase.setOutput(flatten(node.get("output")));
+        testCase.setProblem(problem);
+
+        return testCase;
+    }
+
+    private String flatten(JsonNode root) {
+        if (root == null || root.isNull()) {
+            return "";
+        }
+        List<String> values = new ArrayList<>();
+        collectValues(root, values);
+        return String.join("\n", values);
+    }
+
+    private void collectValues(JsonNode node, List<String> result) {
+        if (node.isArray()) {
+            boolean allPrimitive = true;
+            List<String> values = new ArrayList<>();
+            for (JsonNode val : node) {
+                if (val.isContainerNode()) {
+                    allPrimitive = false;
+                    break;
+                } else {
+                    values.add(val.asText());
+                }
+            }
+
+            if (allPrimitive) {
+                // mảng 1 chiều → gom thành 1 dòng
+                result.add(String.join(" ", values));
+            } else {
+                // mảng nhiều chiều → duyệt tiếp từng phần tử
+                for (JsonNode val : node) {
+                    collectValues(val, result);
+                }
+            }
+
+        } else if (node.isObject()) {
+            node.fields().forEachRemaining(e -> collectValues(e.getValue(), result));
+        } else if (node.isValueNode()) {
+            // giá trị primitive → 1 dòng
+            result.add(node.asText());
+        }
+    }
 
 }

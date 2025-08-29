@@ -11,7 +11,6 @@ import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
 import com.ngleanhvu.dsa_training_system.mappter.SubmissionMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.repo.spec.SubmissionSpecification;
-import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.SubmissionService;
 import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import com.ngleanhvu.dsa_training_system.websocket.WebSocketPublisher;
@@ -31,7 +30,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -53,9 +51,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final ObjectMapper objectMapper;
     private final ContestProblemRepo contestProblemRepo;
     private final WebSocketPublisher webSocketPublisher;
-    private final JwtUtil jwtUtil;
     private final UserRepo userRepo;
-    private final SubmissionTestCaseRepo submissionTestCaseRepo;
 
     @Value("${piston.load_balancer}")
     private String loadBalancer;
@@ -80,11 +76,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         if (testCases.isEmpty()) {
             throw new InvalidValueException("Test case quantity must be more than 1");
         }
-
         long memoryLimitBytes = AppUtil.megabytesToBytes(problemDetail.getMemoryLimit());
-        log.info("load balancer: {}, port: {}", loadBalancer, port);
-
-
         Map<String, Object> initPayload = Map.of(
                 "type", "INIT",
                 "testCases", testCases.stream()
@@ -95,7 +87,6 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .toList()
         );
         webSocketPublisher.sendSubmissionUpdate(email, initPayload);
-
         ExecutorService executor;
         try {
             executor = Executors.newVirtualThreadPerTaskExecutor();
@@ -103,10 +94,8 @@ public class SubmissionServiceImpl implements SubmissionService {
             log.warn("Virtual threads not available, fallback to cached thread pool");
             executor = Executors.newCachedThreadPool();
         }
-
         Map<Integer, Future<SubmissionResponse>> futureByTestId = new LinkedHashMap<>();
         List<SubmissionResponse> allResponses = Collections.synchronizedList(new ArrayList<>());
-
         for (TestCase testCase : testCases) {
             Map<String, Object> runningPayload = Map.of(
                     "type", "TESTCASE_STATUS",
@@ -117,10 +106,8 @@ public class SubmissionServiceImpl implements SubmissionService {
 
             Future<SubmissionResponse> future = executor.submit(() -> {
                 SubmissionResponse resp = runSingleTestCase(
-                        programmingLanguage, problemDetail, submissionRequest, testCase, memoryLimitBytes
+                        programmingLanguage, problemDetail, submissionRequest, testCase, memoryLimitBytes, problemDetail.getTimeLimit()
                 );
-
-
                 Map<String, Object> donePayload = new HashMap<>();
                 donePayload.put("type", "TESTCASE_STATUS");
                 donePayload.put("testCaseId", testCase.getTestCaseId());
@@ -132,7 +119,6 @@ public class SubmissionServiceImpl implements SubmissionService {
                 donePayload.put("cpuTime", resp.getRun() != null ? resp.getRun().getCpuTime() : 0);
                 donePayload.put("memory", resp.getRun() != null ? AppUtil.bytesToMegabytes(resp.getRun().getMemory()) : 0);
                 webSocketPublisher.sendSubmissionUpdate(email, donePayload);
-
                 allResponses.add(resp);
                 return resp;
             });
@@ -188,8 +174,6 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         OverallResponse overallResponse = evaluateOverallStatus(allResponses);
 
-        log.info("max memory: {} MB", memoryLimitBytes);
-
         ListSubmissionResponse listSubmissionResponse = ListSubmissionResponse.builder()
                 .submissionResponses(new ArrayList<>(allResponses))
                 .memory(getMaxMemory(allResponses))
@@ -212,10 +196,11 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .map(r -> SubmissionTestCaseCreateRequest.builder()
                         .testCaseId(r.getTestCaseId())
                         .runtime(r.getRun() != null ? r.getRun().getCpuTime() : 0)
-                        .memory(r.getRun() != null ? r.getRun().getMemory() : 0)
+                        .memory(r.getRun() != null ? AppUtil.bytesToMegabytes(r.getRun().getMemory()) : 0)
                         .status(r.getStatus())
                         .build())
                 .toList();
+        log.info("submission test case create: {}", submissionTestCaseCreateRequests);
 
         SubmissionCreateRequest submissionCreateRequest = SubmissionCreateRequest.builder()
                 .submissionTestCaseCreateRequests(submissionTestCaseCreateRequests)
@@ -226,8 +211,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .problemId(problemDetail.getProblem().getProblemId())
                 .sourceCode(submissionRequest.getSourceCode())
                 .submitTime(LocalDateTime.now())
-                .runtime((int) listSubmissionResponse.getRuntime())
-                .memory((int) AppUtil.bytesToMegabytes((long) listSubmissionResponse.getMemory()))
+                .runtime(listSubmissionResponse.getRuntime())
+                .memory(listSubmissionResponse.getMemory())
                 .message(overallResponse.getMessage())
                 .status(overallResponse.getStatus())
                 .userId(user.getUserId())
@@ -245,33 +230,27 @@ public class SubmissionServiceImpl implements SubmissionService {
             ProblemDetail problemDetail,
             SubmissionRequest submissionRequest,
             TestCase testCase,
-            long memoryLimitBytes
+            long memoryLimitBytes,
+            int timeLimit
     ) {
         Map<String, Object> params = new HashMap<>();
         params.put("language", programmingLanguage.getFileName());
         params.put("version", programmingLanguage.getVersion());
-
         List<Map<String, String>> files = new ArrayList<>();
         Map<String, String> file = new HashMap<>();
         file.put("name", programmingLanguage.getFileMainName());
         file.put("content", submissionRequest.getSourceCode());
         files.add(file);
         params.put("files", files);
-
         params.put("stdin", testCase.getInput());
-        params.put("run_timeout", problemDetail.getTimeLimit());
         params.put("run_memory_limit", problemDetail.getMemoryLimit());
-
-        log.info("run memory limit: {}", problemDetail.getMemoryLimit());
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(params, headers);
-
         String URL = String.format("http://%s:%d/api/v2/execute", loadBalancer, port);
-
         SubmissionResponse response = executeCode(URL, request, testCase);
-
+        log.info("Submission response: {}", response);
+        log.info("test case: {}", testCase.getTestCaseId());
         if (response == null) {
             return SubmissionResponse.builder()
                     .status(SubmissionStatus.NULL_RESPONSE)
@@ -280,46 +259,40 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .testCaseId(testCase.getTestCaseId())
                     .build();
         }
-
         response.setInput(testCase.getInput());
         response.setExpectOutput(testCase.getOutput());
         response.setTestCaseId(testCase.getTestCaseId());
-
         if (response.getRun() == null) {
             response.setStatus(SubmissionStatus.ERROR);
             return response;
         }
-
         if (response.getRun().getCode() != null && response.getRun().getCode() != 0) {
             response.setStatus(SubmissionStatus.COMPILE_ERROR);
             return response;
         }
-
         if ("RE".equals(response.getRun().getStatus())) {
             response.setStatus(SubmissionStatus.RUNTIME_ERROR);
             return response;
         }
-
-        if ("TO".equals(response.getRun().getStatus())) {
-            response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED);
-            return response;
-        }
-
-        Integer memoryUsed = response.getRun().getMemory();
-        if (memoryUsed != null && memoryUsed > memoryLimitBytes) {
+        double memoryUsed = response.getRun().getMemory();
+        int timeUsed = response.getRun().getCpuTime();
+        log.info("timeUsed: {}", timeUsed);
+        log.info("time limit: {}", timeLimit);
+        if (memoryUsed > memoryLimitBytes) {
             response.setStatus(SubmissionStatus.MEMORY_LIMIT_EXCEEDED);
             return response;
         }
-
+        if (timeUsed > timeLimit) {
+            response.setStatus(SubmissionStatus.TIME_LIMIT_EXCEEDED);
+            return response;
+        }
         String actualOutput = response.getRun().getStdout() == null ? "" : response.getRun().getStdout().trim().replace("\r", "");
         String expectedOutput = testCase.getOutput() == null ? "" : testCase.getOutput().trim().replace("\r", "");
-
         if (!actualOutput.equals(expectedOutput)) {
             response.setStatus(SubmissionStatus.WRONG_ANSWER);
         } else {
             response.setStatus(SubmissionStatus.ACCEPTED);
         }
-
         return response;
     }
 
@@ -333,6 +306,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .expectOutput(testCase.getOutput())
                         .build();
             }
+            log.info("submission response: {}", response);
             return response;
         } catch (Exception e) {
             log.error("Error while submit: {}", e.getMessage(), e);
@@ -399,6 +373,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .submissionTestCaseCreateRequests(submissionCreateRequest.getSubmissionTestCaseCreateRequests())
                     .submissionId(submission.getSubmissionId())
                     .build();
+            log.info("submissionTestCaseCreateRequest: {}", submissionTestCaseCreateRequest);
 
             ProblemDocumentUpdateAcceptRateRequest problemDocumentUpdateAcceptRateRequest = ProblemDocumentUpdateAcceptRateRequest.builder()
                     .acceptRate(acceptRate)
@@ -421,7 +396,7 @@ public class SubmissionServiceImpl implements SubmissionService {
 
             String submissionTestCaseRequestJson = objectMapper.writeValueAsString(submissionTestCaseCreateRequest);
             String problemDocumentUpdateAcceptRateRequestJson = objectMapper.writeValueAsString(problemDocumentUpdateAcceptRateRequest);
-
+            log.info("submissionTestCaseRequestJson: {}", submissionTestCaseRequestJson);
             kafkaTemplate.send(KafkaConst.PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC, submissionTestCaseRequestJson, problemDocumentUpdateAcceptRateRequestJson);
             kafkaTemplate.send(KafkaConst.SUBMISSION_TEST_CASE_CREATE_TOPIC, submissionTestCaseRequestJson);
         } catch (Exception e) {
@@ -438,13 +413,20 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     private static double getMaxMemory(List<SubmissionResponse> responses) {
-        return responses.stream()
-                .filter(r -> r.getRun() != null)
-                .mapToLong(r -> r.getRun().getMemory())
-                .mapToDouble(AppUtil::bytesToMegabytes)
-                .max()
-                .orElse(0);
+        var tmp = -1.0;
+        for (var item : responses) {
+            if (item.getRun().getMemory() > tmp) {
+                tmp = item.getRun().getMemory();
+            }
+        }
+        log.info("max memory: {}", tmp);
+        double value =  new BigDecimal(tmp / (1024 * 1024))
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+        log.info("max memory: {}", value);
+        return value;
     }
+
 
     private OverallResponse evaluateOverallStatus(List<SubmissionResponse> responses) {
         int total = responses.size();
@@ -516,17 +498,18 @@ public class SubmissionServiceImpl implements SubmissionService {
     @Override
     public ListBasicResultSubmissionResponse getBasicSubmissionResponses(SubmissionFilterRequest filterRequest, PagingSearch pagingSearch) {
         log.info("filterRequest: {}", filterRequest);
+        List<ProgrammingLanguage> pgs = new ArrayList<>();
+        if (filterRequest.getProgrammingLanguageId() != null && !filterRequest.getProgrammingLanguageId().isEmpty()) {
+            pgs = programmingLanguageRepo.findByProgrammingLanguageIds(filterRequest.getProgrammingLanguageId());
+        }
         Specification<Submission> specification = SubmissionSpecification.hasProblemIdInRange(filterRequest.getProblemId())
                 .and(SubmissionSpecification.hasSubmissionStatuses(filterRequest.getStatus()))
                 .and(SubmissionSpecification.hasTimeRange(filterRequest.getTimeRange()))
-                .and(SubmissionSpecification.hasProgrammingLanguages(filterRequest.getProgrammingLanguageId()));
+                .and(SubmissionSpecification.hasProgrammingLanguages(pgs));
 
         Page<Submission> submissions = submissionRepo.findAll(specification, pagingSearch.toPageable());
 
-        log.info("submissions: {}", submissions.getTotalElements());
-
         if (submissions.isEmpty()) {
-            log.info("submissions is empty");
             return null;
         }
 
@@ -536,9 +519,6 @@ public class SubmissionServiceImpl implements SubmissionService {
         List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.getContent().stream()
                 .map(SubmissionMapper::toDto)
                 .toList();
-
-        log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);
-
         return ListBasicResultSubmissionResponse.builder()
                 .submissions(basicResultSubmissionResponses)
                 .totalPages(totalPages)
@@ -552,7 +532,6 @@ public class SubmissionServiceImpl implements SubmissionService {
         List<BasicResultSubmissionResponse> basicResultSubmissionResponses = submissions.stream()
                 .map(SubmissionMapper::toDto)
                 .toList();
-        log.info("basicResultSubmissionResponses: {}", basicResultSubmissionResponses);
         return ListBasicResultSubmissionResponse.builder()
                 .page(submissions.getNumber()+1)
                 .totalPages(submissions.getTotalPages())

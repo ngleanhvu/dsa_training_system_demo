@@ -1,7 +1,9 @@
 package com.ngleanhvu.dsa_training_system.entity;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Getter
 public enum SubmissionStatus {
     PENDING("Pending"),
@@ -23,7 +25,8 @@ public enum SubmissionStatus {
 
     public static SubmissionStatus getSubmissionStatus(String value) {
         for (SubmissionStatus submissionStatus : SubmissionStatus.values()) {
-            if (submissionStatus.value.equalsIgnoreCase(value)) {
+            log.info("submissionStatus: {}", submissionStatus);
+            if (submissionStatus.name().equalsIgnoreCase(value)) {
                 return submissionStatus;
             }
         }

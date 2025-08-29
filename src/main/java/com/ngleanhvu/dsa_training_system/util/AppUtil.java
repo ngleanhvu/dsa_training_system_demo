@@ -1,11 +1,13 @@
 package com.ngleanhvu.dsa_training_system.util;
 
+import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -14,12 +16,9 @@ public class AppUtil {
         return mb * 1024 * 1024;
     }
 
-    public static double bytesToMegabytes(long bytes) {
-        return (double) bytes / (1024 * 1024);
-    }
-
-    public static long bytesToKilobytes(long bytes) {
-        return bytes / 1024;
+    public static double bytesToMegabytes(double bytes) {
+        double mb = (double) bytes / (1024 * 1024);
+        return new BigDecimal(mb).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     public static SubmissionStatus fromValue(String value) {
@@ -29,13 +28,6 @@ public class AppUtil {
             }
         }
         throw new IllegalArgumentException("Không tìm thấy SubmissionStatus với value: " + value);
-    }
-
-    public static Object convertToJsonCompatible(Object value) {
-        if (value instanceof LocalDate date) {
-            return date.toString();
-        }
-        return value;
     }
 
     public static String sanitize(String inputHtml) {
@@ -61,15 +53,19 @@ public class AppUtil {
     }
 
     public static String changeSortBy(String sortOrder) {
-        if (sortOrder.equals("createdAt")) {
-            return "created_at";
-        }
-        if (sortOrder.equals("upVotes")) {
-            return "up_votes";
-        }
-        if (sortOrder.equals("content")) {
-            return "content";
-        }
-        return "created_at";
+        return switch (sortOrder) {
+            case "upVotes" -> "up_votes";
+            case "content" -> "content";
+            default -> "created_at";
+        };
+    }
+
+    public static PagingSearch toPagingSearch(String sortBy, String sortDir, Integer page, Integer pageSize) {
+        return PagingSearch.builder()
+                .page(page)
+                .size(pageSize)
+                .sortBy(sortBy)
+                .direction(sortDir)
+                .build();
     }
 }

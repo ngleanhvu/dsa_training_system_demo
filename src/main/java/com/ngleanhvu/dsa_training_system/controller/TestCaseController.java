@@ -5,14 +5,21 @@ import com.ngleanhvu.dsa_training_system.dto.request.TestCaseUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.service.TestCaseService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,11 +49,7 @@ public class TestCaseController {
                                                    @RequestParam(required = false, defaultValue = "0") Integer page,
                                                    @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
 
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page);
-        pagingSearch.setDirection(sortDirection);
-        pagingSearch.setSize(pageSize);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDirection, Math.max(page-1,0), pageSize);
         var response = testCaseService.getTestCaseByProblemId(problemId, pagingSearch);
         var apiResponse = ApiResponse.builder()
                 .metadata(response)
@@ -112,11 +115,7 @@ public class TestCaseController {
                                           @RequestParam(required = false, defaultValue = "asc") String sortDirection,
                                           @RequestParam(required = false, defaultValue = "1") Integer page,
                                           @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(Math.max(0, page - 1));
-        pagingSearch.setDirection(sortDirection);
-        pagingSearch.setSize(pageSize);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDirection, Math.max(page-1,0), pageSize);
         var response = testCaseService.getAllTestCases(problemId, pagingSearch);
         var apiResponse = ApiResponse.builder()
                 .metadata(response)
@@ -124,5 +123,57 @@ public class TestCaseController {
                 .message("Get test cases success")
                 .build();
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/upload/{problemId}")
+    public ResponseEntity<?> uploadTestCase(@RequestPart("file") MultipartFile file,
+                                            @PathVariable("problemId") Integer problemId) throws IOException {
+        testCaseService.uploadTestCase(problemId, file);
+        var response = ApiResponse.builder()
+                .message("Uploaded test case success")
+                .status(HttpStatus.CREATED.name())
+                .metadata(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/generate")
+    public void generateFile(
+            @RequestParam int n,
+            @RequestParam long min,
+            @RequestParam long max,
+            @RequestParam(defaultValue = "true") boolean allowDuplicate,
+            HttpServletResponse response
+    ) throws Exception {
+
+        if (min > max) {
+            throw new IllegalArgumentException("min must be <= max");
+        }
+        if (!allowDuplicate && n > (max - min + 1)) {
+            throw new IllegalArgumentException("n is larger than available unique numbers");
+        }
+
+        response.setContentType("text/plain");
+        response.setHeader("Content-Disposition", "attachment; filename=\"array.txt\"");
+
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(response.getOutputStream()))) {
+            if (allowDuplicate) {
+                for (int i = 0; i < n; i++) {
+                    long value = ThreadLocalRandom.current().nextLong(min, max + 1);
+                    writer.write(Long.toString(value));
+                    if (i < n - 1) writer.write(" ");
+                }
+            } else {
+                java.util.Set<Long> set = new java.util.HashSet<>();
+                while (set.size() < n) {
+                    long value = ThreadLocalRandom.current().nextLong(min, max + 1);
+                    if (set.add(value)) {
+                        writer.write(Long.toString(value));
+                        if (set.size() < n) writer.write(" ");
+                    }
+                }
+            }
+        }
     }
 }

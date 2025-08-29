@@ -4,8 +4,6 @@ import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 

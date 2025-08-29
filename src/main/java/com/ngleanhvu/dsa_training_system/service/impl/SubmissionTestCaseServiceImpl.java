@@ -6,7 +6,6 @@ import com.ngleanhvu.dsa_training_system.constant.KafkaConst;
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionTestCaseCreateRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.SubmissionTestCaseRequest;
 import com.ngleanhvu.dsa_training_system.entity.Submission;
-import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionTestCase;
 import com.ngleanhvu.dsa_training_system.entity.TestCase;
 import com.ngleanhvu.dsa_training_system.exception.ResourceNotFoundException;
@@ -19,8 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,10 +40,12 @@ public class SubmissionTestCaseServiceImpl implements SubmissionTestCaseService 
     public void createSubmissionTestCase(String json) throws JsonProcessingException {
 
         SubmissionTestCaseRequest submissionTestCaseRequest = objectMapper.readValue(json, SubmissionTestCaseRequest.class);
+        log.info("submissionTestCaseRequest received: {}", submissionTestCaseRequest);
 
         Submission submission = submissionRepo.findById(submissionTestCaseRequest.getSubmissionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Submission", "id", String.valueOf(submissionTestCaseRequest.getSubmissionId())));
 
+        // Lấy toàn bộ testCase theo id
         List<Integer> testCaseIds = submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().stream()
                 .map(SubmissionTestCaseCreateRequest::getTestCaseId)
                 .toList();
@@ -50,22 +53,24 @@ public class SubmissionTestCaseServiceImpl implements SubmissionTestCaseService 
         List<TestCase> testCases = testCaseRepo.findAllById(testCaseIds);
         log.info("Test cases: {}", testCases);
 
-        List<SubmissionTestCase> submissionTestCases = new ArrayList<>();
+        // Map testCaseId -> TestCase
+        Map<Integer, TestCase> testCaseMap = testCases.stream()
+                .collect(Collectors.toMap(TestCase::getTestCaseId, Function.identity()));
 
-        for (int i = 0; i < testCases.size(); i++) {
-            TestCase testCase = testCases.get(i);
-            SubmissionStatus status = submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().get(i).getStatus();
-            SubmissionTestCase submissionTestCase = SubmissionTestCase.builder()
-                    .submissionStatus(status)
-                    .submission(submission)
-                    .memoryKb(submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().get(i).getMemory())
-                    .runtimeMs(submissionTestCaseRequest.getSubmissionTestCaseCreateRequests().get(i).getRuntime())
-                    .testCase(testCase)
-                    .status(1)
-                    .build();
-            submissionTestCases.add(submissionTestCase);
-        }
+        List<SubmissionTestCase> submissionTestCases = submissionTestCaseRequest.getSubmissionTestCaseCreateRequests()
+                .stream()
+                .map(req -> SubmissionTestCase.builder()
+                        .submissionStatus(req.getStatus())
+                        .submission(submission)
+                        .memoryKb(req.getMemory())
+                        .runtimeMs(req.getRuntime())
+                        .testCase(testCaseMap.get(req.getTestCaseId())) // match đúng TestCase
+                        .status(1)
+                        .build()
+                )
+                .toList();
 
         submissionTestCaseRepo.saveAll(submissionTestCases);
     }
+
 }

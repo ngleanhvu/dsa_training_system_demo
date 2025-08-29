@@ -9,7 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "submissions")@Getter
+@Table(name = "submissions")
+@Getter
 @Setter
 @Builder
 @NoArgsConstructor
@@ -36,10 +37,10 @@ public class Submission {
     private SubmissionStatus submissionStatus;
 
     @Column(name = "runtime_ms")
-    private Integer runtimeMs;
+    private double runtimeMs;
 
     @Column(name = "memory_kb")
-    private Integer memoryKb;
+    private double memoryKb;
 
     private Integer testCasesPassed = 0;
 

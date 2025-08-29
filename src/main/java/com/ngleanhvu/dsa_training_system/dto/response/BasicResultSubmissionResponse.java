@@ -15,8 +15,8 @@ public class BasicResultSubmissionResponse {
     private int submissionId;
     private String sourceCode;
     private LocalDateTime timestamp;
-    private int memory;
-    private int time;
+    private double memory;
+    private double time;
     private String programmingLanguage;
     private int problemId;
 }

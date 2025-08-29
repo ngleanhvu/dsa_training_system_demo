@@ -2,7 +2,6 @@ package com.ngleanhvu.dsa_training_system.security;
 
 import com.ngleanhvu.dsa_training_system.dto.request.AuthRecord;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,27 +61,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(publicKey)
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
-        } catch (ExpiredJwtException e) {
-            log.error("Expired JWT token: {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            log.error("Unsupported JWT token: {}", e.getMessage());
-        } catch (MalformedJwtException e) {
-            log.error("Malformed JWT token: {}", e.getMessage());
-        } catch (SignatureException e) {
-            log.error("Invalid JWT token: {}", e.getMessage());
-        } catch (Exception e) {
-            log.error(e.getMessage());
-        }
-        return false;
-    }
-
     public Optional<Claims> parseClaims(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
@@ -110,10 +88,6 @@ public class JwtUtil {
 
     public Optional<Date> getExpiration(String token) {
         return parseClaims(token).map(Claims::getExpiration);
-    }
-
-    public Optional<Date> getIssuedAt(String token) {
-        return parseClaims(token).map(Claims::getIssuedAt);
     }
 
     public String getUserIdFromToken(@RequestHeader("Authorization")  String authHeader) {

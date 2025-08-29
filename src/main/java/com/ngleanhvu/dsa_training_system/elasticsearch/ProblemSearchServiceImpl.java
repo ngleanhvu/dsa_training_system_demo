@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionalEventListener;
-
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,11 +37,15 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
         var problemIds = problemDocuments.stream()
                 .map(ProblemDocument::getId)
                 .toList();
+
         var problemSolved = submissionRepo.getSubmissionByUserIdAndProblemStatus(request.getUserId(),
-                problemIds);
+                    problemIds);
+
+        log.info("problemSolved: {}", problemSolved);
         Set<Integer> problemSolvedIdsSet = problemSolved.stream()
                 .map(s -> s.getProblem().getProblemId())
                 .collect(Collectors.toSet());
+        log.info("problemSolvedIdsSet: {}", problemSolvedIdsSet);
         List<ProblemDocumentResponse> problemDocumentResponses = problemDocuments.stream()
                 .map(p -> ProblemDocumentResponse.builder()
                         .id(p.getId())
@@ -59,14 +62,12 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
                         .build()
                 )
                 .toList();
-        log.debug("problemDocumentResponses : {}", problemDocumentResponses);
-        ListProblemDocumentResponse listProblemDocumentResponse = ListProblemDocumentResponse.builder()
+        return ListProblemDocumentResponse.builder()
                 .problemDocumentResponses(problemDocumentResponses)
                 .page(problemDocumentPage.getNumber()+1)
                 .totalPages(problemDocumentPage.getTotalPages())
                 .totalElements((int) problemDocumentPage.getTotalElements())
                 .build();
-        return listProblemDocumentResponse;
     }
 
     @TransactionalEventListener
@@ -93,7 +94,6 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_ACCEPT_RATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void updateAcceptRate(String json) throws JsonProcessingException {
         ProblemDocumentUpdateAcceptRateRequest problemDocumentUpdateAcceptRateRequest = objectMapper.readValue(json, ProblemDocumentUpdateAcceptRateRequest.class);
-        log.info("problem update accept rate request: {}", problemDocumentUpdateAcceptRateRequest);
         problemDocumentRepoImpl.updateAcceptRateByProblemId(problemDocumentUpdateAcceptRateRequest.getProblemId(),
                 problemDocumentUpdateAcceptRateRequest.getAcceptRate());
     }
@@ -102,7 +102,6 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_DELETE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void deleteProblemDocument(String json) throws JsonProcessingException {
         Integer problemId = objectMapper.readValue(json, Integer.class);
-        log.info("problem delete document request: {}", problemId);
         problemDocumentRepoImpl.deleteByProblemId(problemId);
     }
 
@@ -110,7 +109,6 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_TOGGLE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void toggleProblemDocument(String json) throws JsonProcessingException {
         ToggleRequest toggleRequest = objectMapper.readValue(json, ToggleRequest.class);
-        log.info("problem toggle document request: {}", toggleRequest);
         problemDocumentRepoImpl.toggleProblemById(toggleRequest);
     }
 
@@ -118,7 +116,6 @@ public class ProblemSearchServiceImpl implements ProblemSearchService {
     @KafkaListener(topics = KafkaConst.PROBLEM_DOCUMENT_UPDATE_TOPIC, groupId = KafkaConst.GROUP_ID)
     public void updateTopic(String json) throws JsonProcessingException {
         ProblemDocumentUpdateRequest problemDocumentUpdateRequest = objectMapper.readValue(json, ProblemDocumentUpdateRequest.class);
-        log.info("problem update document request: {}", problemDocumentUpdateRequest);
         problemDocumentRepoImpl.updateProblemsByProblemId(problemDocumentUpdateRequest);
     }
 }

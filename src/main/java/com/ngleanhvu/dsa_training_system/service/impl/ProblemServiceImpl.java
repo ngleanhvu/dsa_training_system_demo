@@ -155,7 +155,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .problems(responses)
                 .page(page)
                 .totalElements(totalElements)
-                .totalPage(totalPages)
+                .totalPages(totalPages)
                 .build();
         log.debug("ListProblemResponse: {}",listProblemResponse);
         return listProblemResponse;
@@ -370,6 +370,11 @@ public class ProblemServiceImpl implements ProblemService {
         }
 
         problemRepo.save(problem);
+    }
+
+    @Override
+    public long countSolvedProblems(String userId) {
+        return problemRepo.countSolvedProblems(userId);
     }
 
     private String getSlugPrefix() {

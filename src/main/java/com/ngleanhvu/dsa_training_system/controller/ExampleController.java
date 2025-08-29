@@ -2,11 +2,11 @@ package com.ngleanhvu.dsa_training_system.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ngleanhvu.dsa_training_system.dto.request.ExampleCreateRequest;
-import com.ngleanhvu.dsa_training_system.dto.request.ExampleUpdateInfoRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.ExampleUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.service.ExampleService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -43,14 +43,9 @@ public class ExampleController {
     public ResponseEntity<?> getExample(@RequestParam(required = false, defaultValue = "0") Integer problemId,
                                         @RequestParam(required = false, defaultValue = "1") Integer page,
                                         @RequestParam(required = false, defaultValue = "10") Integer pageSize,
-                                        @RequestParam(required = false, defaultValue = "asc") String sortDirection,
+                                        @RequestParam(required = false, defaultValue = "asc") String sortDir,
                                         @RequestParam(required = false, defaultValue = "exampleId") String sortBy) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setPage(Math.max(page-1, 0));
-        pagingSearch.setDirection(sortDirection);
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setSize(pageSize);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), pageSize);
         var response = exampleService.getExamples(problemId, pagingSearch);
         var api = ApiResponse.builder()
                 .message("Get examples success")
@@ -65,7 +60,6 @@ public class ExampleController {
     public ResponseEntity<?> updateExample(@PathVariable("exampleId") Integer exampleId,
                                            @Valid @ModelAttribute ExampleUpdateRequest request) {
         exampleService.updateExample(exampleId, request);
-
         return ResponseEntity.ok(
                 ApiResponse.builder()
                         .status(HttpStatus.OK.name())

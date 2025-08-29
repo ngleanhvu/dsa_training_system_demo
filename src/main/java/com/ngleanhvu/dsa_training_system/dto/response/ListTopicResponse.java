@@ -7,9 +7,8 @@ import java.util.List;
 
 @Data
 @Builder
-public class ListProblemResponse {
-    private List<ProblemResponse> problems;
+public class ListTopicResponse {
+    private List<TopicResponse> topics;
     private int page;
     private int totalPages;
-    private int totalElements;
 }

@@ -6,7 +6,9 @@ import com.ngleanhvu.dsa_training_system.dto.response.ListTestCaseResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.dto.response.TestCaseResponse;
 import com.ngleanhvu.dsa_training_system.entity.TestCase;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 public interface TestCaseService {
@@ -18,4 +20,5 @@ public interface TestCaseService {
     void deleteTestCaseById(int testCaseId);
     TestCaseResponse getTestCaseById(int testCaseId);
     ListTestCaseResponse getAllTestCases(Integer problemId, PagingSearch pagingSearch);
+    void uploadTestCase(Integer problemId, MultipartFile file) throws IOException;
 }

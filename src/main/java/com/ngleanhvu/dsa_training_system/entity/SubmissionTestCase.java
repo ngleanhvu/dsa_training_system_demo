@@ -36,7 +36,7 @@ public class SubmissionTestCase {
     private int runtimeMs;
 
     @Column(name = "memory")
-    private int memoryKb;
+    private double memoryKb;
 
     private Integer status = 1;
 

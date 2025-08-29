@@ -18,8 +18,8 @@ public class SubmissionCreateRequest {
     private int problemId;
     private int programmingLanguageId;
     private String sourceCode;
-    private int memory;
-    private int runtime;
+    private double memory;
+    private double runtime;
     private LocalDateTime submitTime;
     private String status;
     private List<SubmissionTestCaseCreateRequest> submissionTestCaseCreateRequests;

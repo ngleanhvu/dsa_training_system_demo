@@ -80,7 +80,6 @@ public class ExampleServiceImpl implements ExampleService {
         }
 
         String imagesJson = imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls);
-        log.info("Upload images: {}", imagesJson);
 
         return Example.builder()
                 .input(request.getInput())
@@ -102,14 +101,12 @@ public class ExampleServiceImpl implements ExampleService {
 
 
         Example example = createExample(requests, problem, files);
-        log.info("Created example: {}", example.toString());
         exampleRepo.save(example);
     }
 
     @Override
     public ListExampleResponse getExamples(Integer problemId,
                                            PagingSearch pagingSearch) {
-        log.info("problemId: {}", problemId);
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Example> query = cb.createQuery(Example.class);
@@ -118,7 +115,6 @@ public class ExampleServiceImpl implements ExampleService {
         List<Predicate> predicates = new ArrayList<>();
 
         if (problemId != 0) {
-            log.info("problemId: {}", problemId);
             predicates.add(cb.equal(root.get("problem").get("problemId"), problemId));
         }
 
@@ -140,7 +136,6 @@ public class ExampleServiceImpl implements ExampleService {
                 .map(ExampleMapper::mapToDto)
                 .toList();
 
-        log.info("size: {}", examples.size());
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Example> countRoot = countQuery.from(Example.class);
@@ -158,10 +153,6 @@ public class ExampleServiceImpl implements ExampleService {
 
         int totalPages = (int) Math.ceil((double) total / size);
 
-        log.info("totalPages: {}", totalPages);
-        log.info("total: {}", total);
-        log.info("size: {}", size);
-
         return ListExampleResponse.builder()
                 .totalPages(totalPages)
                 .page(page)
@@ -174,8 +165,6 @@ public class ExampleServiceImpl implements ExampleService {
     public void updateExample(Integer exampleId, ExampleUpdateRequest request) {
         Example example = exampleRepo.findById(exampleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Example", "id", String.valueOf(exampleId)));
-        log.info("Updating example: {}", example.toString());
-        log.info("request: {}", request);
 
         example.setInput(request.getInput());
         example.setOutput(request.getOutput());
@@ -202,6 +191,8 @@ public class ExampleServiceImpl implements ExampleService {
             } catch (JsonProcessingException e) {
                 log.error("JSON error: {}", e.getMessage());
             }
+        } else {
+            example.setImages("[]");
         }
 
         exampleRepo.save(example);
@@ -218,10 +209,7 @@ public class ExampleServiceImpl implements ExampleService {
     public ExampleResponse getExampleById(Integer exampleId) {
         Example example = exampleRepo.findById(exampleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Example", "id", String.valueOf(exampleId)));
-        log.info("example: {}", example.toString());
-        ExampleResponse exampleResponse = ExampleMapper.mapToDto(example);
-        log.info("exampleResponse: {}", exampleResponse.toString());
-        return exampleResponse;
+        return ExampleMapper.mapToDto(example);
     }
 
 

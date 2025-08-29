@@ -36,6 +36,6 @@ public class SubmissionResponse {
         @JsonProperty("wall_time")
         private Integer wallTime;
 
-        private Integer memory;
+        private double memory;
     }
 }

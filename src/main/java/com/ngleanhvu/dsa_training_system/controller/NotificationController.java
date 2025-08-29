@@ -4,6 +4,7 @@ import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
 import com.ngleanhvu.dsa_training_system.dto.response.PagingSearch;
 import com.ngleanhvu.dsa_training_system.security.JwtUtil;
 import com.ngleanhvu.dsa_training_system.service.NotificationService;
+import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +25,7 @@ public class NotificationController {
                                                   @RequestParam(required = false, defaultValue = "10") int size,
                                                   @RequestParam(required = false, defaultValue = "desc") String sortDir) {
 
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(Math.max(page-1, 0));
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var usersId = jwtUtil.getUserIdFromToken(token);
         var response = notificationService.getNotifications(pagingSearch,
                 usersId);

@@ -13,18 +13,13 @@ import com.ngleanhvu.dsa_training_system.mappter.CommentMapper;
 import com.ngleanhvu.dsa_training_system.repo.*;
 import com.ngleanhvu.dsa_training_system.service.CommentService;
 import com.ngleanhvu.dsa_training_system.service.NotificationService;
-import com.ngleanhvu.dsa_training_system.util.AppUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,406 +36,252 @@ public class CommentServiceImpl implements CommentService {
 
     @Transactional
     @Override
-    public void createComment(CommentRequest commentRequest,
-                              Integer discussId) {
-        boolean isReply = false;
-        String content = "";
-        String email = "";
-        User user = userRepo.findById(commentRequest.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", commentRequest.getUserId()));
-
-        Discuss discuss = discussRepo.findById(discussId)
-                .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
+    public void createComment(CommentRequest request, Integer discussId) {
+        User user = getUserOrThrow(request.getUserId());
+        Discuss discuss = getDiscussOrThrow(discussId);
 
         Comment comment = Comment.builder()
                 .discuss(discuss)
                 .status(1)
                 .commentCount(0)
                 .upVotes(0)
-                .content(commentRequest.getContent())
+                .content(request.getContent())
                 .user(user)
                 .build();
 
-        if (commentRequest.getParentCommentId() != null) {
-            Comment parentComment = commentRepo.findById(commentRequest.getParentCommentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentRequest.getParentCommentId())));
-            comment.setParent(parentComment);
-            parentComment.setCommentCount(parentComment.getCommentCount() + 1);
-            isReply = true;
-            email = parentComment.getUser().getEmail();
-        }
-        log.info("isReply: " + isReply);
-        log.info("email: " + email);
-        if (isReply) {
-            content = " have replied your comment";
+        String notificationEmail;
+        String contentSuffix;
+
+        if (request.getParentCommentId() != null) {
+            Comment parent = getCommentOrThrow(request.getParentCommentId());
+            comment.setParent(parent);
+            parent.setCommentCount(parent.getCommentCount() + 1);
+            commentRepo.save(parent);
+
+            notificationEmail = parent.getUser().getEmail();
+            contentSuffix = " have replied your comment";
         } else {
-            content = " have comment your discuss";
+            notificationEmail = discuss.getUser().getEmail();
+            contentSuffix = " have comment your discuss";
         }
-        String userDisplayName = user.getDisplayName();
-        discuss.setCommentCount(comment.getCommentCount() + 1);
-        if (email == null || email.isEmpty()) {
-            email = discuss.getUser().getEmail();
-        }
+
+        discuss.setCommentCount(discuss.getCommentCount() + 1);
         commentRepo.save(comment);
-        NotificationResponse notificationResponse = new NotificationResponse();
-        notificationResponse.setContent(userDisplayName + content);
-        notificationResponse.setRead(false);
-        notificationResponse.setSenderUserName(email);
-        notificationService.sendPrivateNotification(notificationResponse);
+        sendNotification(user.getDisplayName(), contentSuffix, notificationEmail);
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
+    @Transactional
     @Override
-    public void createCommentForProblem(CommentRequest commentRequest, Integer problemId) {
-        log.info("Create comment for problem {}", problemId);
+    public void createCommentForProblem(CommentRequest request, Integer problemId) {
+        User user = getUserOrThrow(request.getUserId());
+        Problem problem = getProblemOrThrow(problemId);
 
-        User user = userRepo.findById(commentRequest.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", commentRequest.getUserId()));
-        log.info("user = {}", user);
-        Problem problem = problemRepo.findById(problemId)
-                .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", String.valueOf(problemId)));
-        log.info("problem = {}", problem);
         Comment comment = Comment.builder()
-                .content(commentRequest.getContent())
+                .content(request.getContent())
                 .user(user)
-                .upVotes(0)
                 .status(1)
                 .commentCount(0)
+                .upVotes(0)
                 .build();
 
-        if (commentRequest.getParentCommentId() != null) {
-            Comment parentComment = commentRepo.findCommentById(commentRequest.getParentCommentId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Comment", "id", String.valueOf(commentRequest.getParentCommentId())
-                    ));
-            comment.setParent(parentComment);
-            parentComment.setCommentCount(parentComment.getCommentCount() + 1);
-            commentRepo.save(parentComment);
-            NotificationResponse notificationResponse = new NotificationResponse();
-            notificationResponse.setContent(user.getDisplayName() + " have replied your comment");
-            notificationResponse.setRead(false);
-            notificationResponse.setSenderUserName(parentComment.getUser().getEmail());
-            notificationService.sendPrivateNotification(notificationResponse);
+        if (request.getParentCommentId() != null) {
+            Comment parent = getCommentOrThrow(request.getParentCommentId());
+            comment.setParent(parent);
+            parent.setCommentCount(parent.getCommentCount() + 1);
+            commentRepo.save(parent);
+
+            sendNotification(user.getDisplayName(), " have replied your comment", parent.getUser().getEmail());
         }
 
-        // Lưu comment mới
         commentRepo.save(comment);
 
-        log.info("comment = {}", comment);
-
-       if (commentRequest.getParentCommentId() == null) {
-           ProblemComment problemComment = new ProblemComment();
-           problemComment.setComment(comment);
-           problemComment.setProblem(problem);
-
-           problemCommentRepo.save(problemComment);
-       }
-
-
-        log.info("Comment created successfully for problem {}", problemId);
-    }
-
-
-    @Override
-    public ListCommentResponse getCommentsByDiscuss(Integer discussId, PagingSearch pagingSearch) {
-        log.info("discussId: {}", discussId);
-        Page<Comment> comments = commentRepo.findCommentsByDiscuss(discussId, pagingSearch.toPageable());
-        log.info("comments: {}", comments);
-        List<CommentResponse> commentResponses = comments.stream()
-                .map(CommentMapper::toDto)
-                .toList();
-        log.info("commentResponses: {}", commentResponses);
-        return ListCommentResponse.builder()
-                .comments(commentResponses)
-                .totalPages(comments.getTotalPages())
-                .page(comments.getNumber()+1)
-                .build();
-    }
-
-    @Override
-    public ListCommentResponse getCommentsByDiscussWithCredential(Integer discussId, String userId, PagingSearch pagingSearch) {
-        log.info("discussId: {}", discussId);
-        log.info("userId: {}", userId);
-        Discuss discuss = discussRepo.findById(discussId)
-                .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", String.valueOf(discussId)));
-        Page<Object[]> commentDiscussPage = commentRepo.findCommentByDiscussWithCredential(discussId,
-                userId,
-                pagingSearch.toPageable());
-        log.info("total elements: {}", commentDiscussPage.getTotalElements());
-        List<CommentResponse> commentResponses = commentDiscussPage.getContent().stream()
-                .map(c -> CommentResponse.builder()
-                        .commentId((Integer) c[0])
-                        .content((String) c[1])
-                        .commentCount((Integer) c[2])
-                        .upVotes((Integer) c[3])
-                        .createdAt(AppUtil.changeFormatDate(c[4]))
-                        .userEmail((String) c[5])
-                        .userDisplayName((String) c[6])
-                        .userAvatar((String) c[7])
-                        .isUpVote((Long) c[8])
-                        .build())
-                .toList();
-        log.info("commentResponses: {}", commentResponses);
-        return ListCommentResponse.builder()
-                .totalPages(commentDiscussPage.getTotalPages())
-                .page(commentDiscussPage.getNumber()+1)
-                .comments(commentResponses)
-                .build();
-    }
-
-    @Override
-    public ListCommentResponse getCommentsByProblem(Integer problemId, PagingSearch pagingSearch, String userId) {
-        List<CommentResponse> commentResponses = new ArrayList<>();
-        int page = 0;
-        int totalPages = 1;
-        log.info("problemId: {}", problemId);
-        log.info("userId: {}", userId);
-
-        if (userId != null) {
-            Page<Object[]> comments = commentRepo.findCommentByUser(userId, problemId, pagingSearch.toPageable());
-            page = comments.getNumber() + 1;
-            log.info("page: {}", page);
-            totalPages = comments.getTotalPages();
-            log.info("totalPages: {}", totalPages);
-            log.info("comments: {}", comments);
-            commentResponses = comments.getContent()
-                    .stream()
-                    .map(c -> {
-                        CommentResponse commentResponse = new CommentResponse();
-                        Integer commentId = (Integer) c[0];
-                        log.info("commentId: {}", commentId);
-                        String content = (String) c[1];
-                        log.info("content: {}", content);
-                        Integer commentCount = (Integer) c[2];
-                        log.info("commentCount: {}", commentCount);
-                        Integer upVotes = (Integer) c[3];
-                        log.info("upVotes: {}", upVotes);
-                        Object createdAtObj = c[4];
-                        LocalDateTime createdAt = null;
-
-                        if (createdAtObj instanceof java.sql.Timestamp) {
-                            createdAt = ((java.sql.Timestamp) createdAtObj).toLocalDateTime();
-                        } else if (createdAtObj instanceof java.time.LocalDateTime) {
-                            createdAt = (LocalDateTime) createdAtObj;
-                        } else if (createdAtObj instanceof String) {
-                            createdAt = LocalDateTime.parse((String) createdAtObj);
-                        }
-                        log.info("createdAt: {}", createdAt);
-                        String userEmail = (String) c[5];
-                        log.info("userEmail: {}", userEmail);
-                        String userDisplayName = (String) c[6];
-                        log.info("userDisplayName: {}", userDisplayName);
-                        String userAvatar = (String) c[7];
-                        log.info("userName: {}", userDisplayName);
-                        log.info("c[8] class: {}", c[8] != null ? c[8].getClass().getName() : "null");
-                        log.info("c[8] value: {}", c[8]);
-                        Long isUpVote = (Long) c[8];
-                        log.info("isUpVote: {}", isUpVote);
-
-                        commentResponse.setCommentId(commentId);
-                        commentResponse.setContent(content);
-                        commentResponse.setCommentCount(commentCount);
-                        commentResponse.setUpVotes(upVotes);
-                        commentResponse.setUserEmail(userEmail);
-                        commentResponse.setUserDisplayName(userDisplayName);
-                        commentResponse.setUserAvatar(userAvatar);
-                        commentResponse.setIsUpVote(isUpVote);
-                        commentResponse.setViews(0);
-                        commentResponse.setDownVotes(0);
-                        commentResponse.setCreatedAt(createdAt);
-                        log.info("commentResponse {}", commentResponse);
-                        return commentResponse;
-
-                    })
-                    .toList();
-
-        } else {
-            Page<Comment> commentPage = commentRepo.findCommentByProblem(problemId, pagingSearch.toPageable());
-            page = commentPage.getNumber() + 1;
-            totalPages = commentPage.getTotalPages();
-            commentResponses = commentPage.getContent()
-                    .stream()
-                    .map(CommentMapper::toDto)
-                    .toList();
+        if (request.getParentCommentId() == null) {
+            ProblemComment problemComment = new ProblemComment();
+            problemComment.setComment(comment);
+            problemComment.setProblem(problem);
+            problemCommentRepo.save(problemComment);
         }
-
-
-        log.info("commentResponses: {}", commentResponses);
-        return ListCommentResponse.builder()
-                .comments(commentResponses)
-                .totalPages(totalPages)
-                .page(page)
-                .build();
     }
 
     @Override
-    public ListCommentResponse getChildCommentsByParentComment(Integer parentCommentId, PagingSearch pagingSearch) {
-        log.info("parentCommentId: {}", parentCommentId);
-        Page<Comment> comments = commentRepo.findCommentsByParentComment(parentCommentId, pagingSearch.toPageable());
-        log.info("comments: {}", comments);
-        List<CommentResponse> commentResponses = comments.stream()
-                .map(CommentMapper::toDto)
+    public ListCommentResponse getCommentsByDiscuss(Integer discussId, PagingSearch paging) {
+        Page<Comment> comments = commentRepo.findCommentsByDiscuss(discussId, paging.toPageable());
+        return buildListCommentResponse(comments);
+    }
+
+    @Override
+    public ListCommentResponse getCommentsByDiscussWithCredential(Integer discussId, String userId, PagingSearch paging) {
+        Page<Object[]> comments = commentRepo.findCommentByDiscussWithCredential(discussId, userId, paging.toPageable());
+        List<CommentResponse> responses = comments.getContent().stream()
+                .map(this::mapObjectArrayToCommentResponse)
                 .toList();
-        log.info("commentResponses: {}", commentResponses);
+
         return ListCommentResponse.builder()
-                .comments(commentResponses)
+                .comments(responses)
                 .totalPages(comments.getTotalPages())
-                .page(comments.getNumber()+1)
+                .page(comments.getNumber() + 1)
                 .build();
     }
 
     @Override
-    public ListCommentResponse getCommentsByParentCommentWithUser(Integer parentCommentId, String userId, PagingSearch pagingSearch) {
-        List<CommentResponse> commentResponses = new ArrayList<>();
-        int page = 0;
-        int totalPages = 1;
-        log.info("parentCommentId: {}", parentCommentId);
-        log.info("userId: {}", userId);
-
+    public ListCommentResponse getCommentsByProblem(Integer problemId, PagingSearch paging, String userId) {
         if (userId != null) {
-            Page<Object[]> comments = commentRepo.findCommentsByParentCommentWithUser(parentCommentId,userId, pagingSearch.toPageable());
-            page = comments.getNumber() + 1;
-            log.info("page: {}", page);
-            totalPages = comments.getTotalPages();
-            log.info("totalPages: {}", totalPages);
-            log.info("comments: {}", comments);
-            commentResponses = comments.getContent()
-                    .stream()
-                    .map(c -> {
-                        CommentResponse commentResponse = new CommentResponse();
-                        Integer commentId = (Integer) c[0];
-                        log.info("commentId: {}", commentId);
-                        String content = (String) c[1];
-                        log.info("content: {}", content);
-                        Integer commentCount = (Integer) c[2];
-                        log.info("commentCount: {}", commentCount);
-                        Integer upVotes = (Integer) c[3];
-                        log.info("upVotes: {}", upVotes);
-                        Object createdAtObj = c[4];
-                        LocalDateTime createdAt = null;
-
-                        if (createdAtObj instanceof java.sql.Timestamp) {
-                            createdAt = ((java.sql.Timestamp) createdAtObj).toLocalDateTime();
-                        } else if (createdAtObj instanceof java.time.LocalDateTime) {
-                            createdAt = (LocalDateTime) createdAtObj;
-                        } else if (createdAtObj instanceof String) {
-                            createdAt = LocalDateTime.parse((String) createdAtObj);
-                        }
-                        log.info("createdAt: {}", createdAt);
-                        String userEmail = (String) c[5];
-                        log.info("userEmail: {}", userEmail);
-                        String userDisplayName = (String) c[6];
-                        log.info("userDisplayName: {}", userDisplayName);
-                        String userAvatar = (String) c[7];
-                        log.info("userName: {}", userDisplayName);
-                        log.info("c[8] class: {}", c[8] != null ? c[8].getClass().getName() : "null");
-                        log.info("c[8] value: {}", c[8]);
-                        Long isUpVote = (Long) c[8];
-                        log.info("isUpVote: {}", isUpVote);
-
-                        commentResponse.setCommentId(commentId);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setContent(content);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setCommentCount(commentCount);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setUpVotes(upVotes);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setUserEmail(userEmail);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setUserDisplayName(userDisplayName);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setUserAvatar(userAvatar);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setIsUpVote(isUpVote);
-                        log.info("commentResponse: {}", commentResponse);
-                        commentResponse.setViews(0);
-                        commentResponse.setDownVotes(0);
-                        commentResponse.setCreatedAt(createdAt);
-                        log.info("commentResponse {}", commentResponse);
-                        return commentResponse;
-
-                    })
-                    .toList();
-
+            Page<Object[]> comments = commentRepo.findCommentByUser(userId, problemId, paging.toPageable());
+            return buildListCommentResponseFromObjectArray(comments);
         } else {
-            Page<Comment> commentPage = commentRepo.findCommentsByParentComment(parentCommentId, pagingSearch.toPageable());
-            page = commentPage.getNumber() + 1;
-            totalPages = commentPage.getTotalPages();
-            commentResponses = commentPage.getContent()
-                    .stream()
-                    .map(CommentMapper::toDto)
-                    .toList();
+            Page<Comment> commentPage = commentRepo.findCommentByProblem(problemId, paging.toPageable());
+            return buildListCommentResponse(commentPage);
         }
+    }
 
+    @Override
+    public ListCommentResponse getChildCommentsByParentComment(Integer parentCommentId, PagingSearch paging) {
+        Page<Comment> comments = commentRepo.findCommentsByParentComment(parentCommentId, paging.toPageable());
+        return buildListCommentResponse(comments);
+    }
 
-        log.info("commentResponses: {}", commentResponses);
-        return ListCommentResponse.builder()
-                .comments(commentResponses)
-                .totalPages(totalPages)
-                .page(page)
-                .build();
+    @Override
+    public ListCommentResponse getCommentsByParentCommentWithUser(Integer parentCommentId, String userId, PagingSearch paging) {
+        if (userId != null) {
+            Page<Object[]> comments = commentRepo.findCommentsByParentCommentWithUser(parentCommentId, userId, paging.toPageable());
+            return buildListCommentResponseFromObjectArray(comments);
+        } else {
+            Page<Comment> commentPage = commentRepo.findCommentsByParentComment(parentCommentId, paging.toPageable());
+            return buildListCommentResponse(commentPage);
+        }
     }
 
     @Transactional
     @Override
     public void toggleVote(String userId, Integer commentId) {
-        Comment comment = commentRepo.findCommentById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
-        log.info("comment from repo = {}", comment);
-        Optional<CommentVote> commentVoteOptional = commentVoteRepo.findByCommentIdAndUserId(commentId, userId);
-        log.info("commentVoteOptional = {}", commentVoteOptional);
-
-        if (commentVoteOptional.isPresent()) {
+        Comment comment = getCommentOrThrow(commentId);
+        commentVoteRepo.findByCommentIdAndUserId(commentId, userId).ifPresentOrElse(vote -> {
             comment.setUpVotes(Math.max(0, comment.getUpVotes() - 1));
-            commentVoteRepo.delete(commentVoteOptional.get());
-        } else {
-            User user = userRepo.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-            CommentVote commentVote = new CommentVote();
-            commentVote.setComment(comment);
-            commentVote.setUser(user);
-            commentVote.setStatus(1);
-            commentVoteRepo.save(commentVote);
+            commentVoteRepo.delete(vote);
+        }, () -> {
+            User user = getUserOrThrow(userId);
+            CommentVote vote = new CommentVote();
+            vote.setComment(comment);
+            vote.setUser(user);
+            vote.setStatus(1);
+            commentVoteRepo.save(vote);
             comment.setUpVotes(comment.getUpVotes() + 1);
-        }
+        });
         commentRepo.save(comment);
     }
 
     @Transactional
     @Override
-    public void updateComment(Integer commentId, CommentUpdateRequest commentUpdateRequest) {
-
-        Comment comment = commentRepo.findCommentById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
-
-        if (!comment.getUser().getUserId().equals(commentUpdateRequest.getUserId())) {
-            throw new PermissionException("User",commentUpdateRequest.getUserId());
-        }
-
-        comment.setContent(commentUpdateRequest.getContent());
+    public void updateComment(Integer commentId, CommentUpdateRequest request) {
+        Comment comment = getCommentOrThrow(commentId);
+        checkPermission(comment.getUser().getUserId(), request.getUserId());
+        comment.setContent(request.getContent());
         commentRepo.save(comment);
     }
 
     @Transactional
     @Override
     public void deleteComment(Integer commentId, String userId) {
-
-        Comment comment = commentRepo.findCommentById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", String.valueOf(commentId)));
-
-        if (!comment.getUser().getUserId().equals(userId)) {
-            throw new PermissionException("User",userId);
-        }
+        Comment comment = getCommentOrThrow(commentId);
+        checkPermission(comment.getUser().getUserId(), userId);
 
         if (comment.getParent() != null) {
-            Comment parentComment = comment.getParent();
-            parentComment.setCommentCount(Math.max(0, parentComment.getCommentCount() - 1));
-            commentRepo.save(parentComment);
+            Comment parent = comment.getParent();
+            parent.setCommentCount(Math.max(0, parent.getCommentCount() - 1));
+            commentRepo.save(parent);
+        }
+
+        if (comment.getDiscuss() != null) {
+            Discuss discuss = comment.getDiscuss();
+            discuss.setCommentCount(Math.max(0, discuss.getCommentCount() - 1));
+            discussRepo.save(discuss);
         }
 
         commentRepo.deleteById(commentId);
     }
 
+    // =================== PRIVATE HELPERS ===================
+
+    private User getUserOrThrow(String userId) {
+        return userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+    }
+
+    private Discuss getDiscussOrThrow(Integer discussId) {
+        return discussRepo.findById(discussId)
+                .orElseThrow(() -> new ResourceNotFoundException("Discuss", "id", discussId.toString()));
+    }
+
+    private Comment getCommentOrThrow(Integer commentId) {
+        return commentRepo.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId.toString()));
+    }
+
+    private Problem getProblemOrThrow(Integer problemId) {
+        return problemRepo.findById(problemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Problem", "id", problemId.toString()));
+    }
+
+    private void sendNotification(String displayName, String contentSuffix, String email) {
+        NotificationResponse response = new NotificationResponse();
+        response.setContent(displayName + contentSuffix);
+        response.setRead(false);
+        response.setSenderUserName(email);
+        notificationService.sendPrivateNotification(response);
+    }
+
+    private ListCommentResponse buildListCommentResponse(Page<Comment> comments) {
+        List<CommentResponse> responses = comments.stream()
+                .map(CommentMapper::toDto)
+                .toList();
+        return ListCommentResponse.builder()
+                .comments(responses)
+                .totalPages(comments.getTotalPages())
+                .page(comments.getNumber() + 1)
+                .build();
+    }
+
+    private ListCommentResponse buildListCommentResponseFromObjectArray(Page<Object[]> comments) {
+        List<CommentResponse> responses = comments.getContent().stream()
+                .map(this::mapObjectArrayToCommentResponse)
+                .toList();
+        return ListCommentResponse.builder()
+                .comments(responses)
+                .totalPages(comments.getTotalPages())
+                .page(comments.getNumber() + 1)
+                .build();
+    }
+
+    private CommentResponse mapObjectArrayToCommentResponse(Object[] c) {
+        CommentResponse response = new CommentResponse();
+        response.setCommentId((Integer) c[0]);
+        response.setContent((String) c[1]);
+        response.setCommentCount((Integer) c[2]);
+        response.setUpVotes((Integer) c[3]);
+        response.setCreatedAt(convertToLocalDateTime(c[4]));
+        response.setUserEmail((String) c[5]);
+        response.setUserDisplayName((String) c[6]);
+        response.setUserAvatar((String) c[7]);
+        response.setIsUpVote((Long) c[8]);
+        response.setViews(0);
+        response.setDownVotes(0);
+        return response;
+    }
+
+    private LocalDateTime convertToLocalDateTime(Object obj) {
+        if (obj instanceof java.sql.Timestamp ts) {
+            return ts.toLocalDateTime();
+        } else if (obj instanceof LocalDateTime ldt) {
+            return ldt;
+        } else if (obj instanceof String s) {
+            return LocalDateTime.parse(s);
+        }
+        return null;
+    }
+
+    private void checkPermission(String ownerId, String userId) {
+        if (!ownerId.equals(userId)) {
+            throw new PermissionException("User", userId);
+        }
+    }
 }

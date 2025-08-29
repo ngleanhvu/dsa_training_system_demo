@@ -1,17 +1,26 @@
 package com.ngleanhvu.dsa_training_system.repo.spec;
 
 import com.ngleanhvu.dsa_training_system.dto.request.RangeRequest;
+import com.ngleanhvu.dsa_training_system.entity.ProgrammingLanguage;
 import com.ngleanhvu.dsa_training_system.entity.Submission;
 import com.ngleanhvu.dsa_training_system.entity.SubmissionStatus;
+import com.ngleanhvu.dsa_training_system.repo.ProgrammingLanguageRepo;
 import jakarta.persistence.criteria.Predicate;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
+@RequiredArgsConstructor
 public class SubmissionSpecification {
+
+    private final ProgrammingLanguageRepo programmingLanguageRepo;
 
     public static Specification<Submission> hasProblemIdInRange(RangeRequest<Integer> problemIdRange) {
         return (root, query, cb) -> {
@@ -38,38 +47,41 @@ public class SubmissionSpecification {
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
+
+            log.info("validStatuses: {}", validStatuses);
+
             if (validStatuses.isEmpty()) return null;
 
             return root.get("submissionStatus").in(validStatuses);
         };
     }
 
-    public static Specification<Submission> hasTimeRange(RangeRequest<LocalDate> timeRangeRequest) {
+    public static Specification<Submission> hasTimeRange(RangeRequest<LocalDateTime> timeRangeRequest) {
         return (root, query, cb) -> {
             if (timeRangeRequest == null) return null;
-
+            log.info("timeRangeRequest: {}", timeRangeRequest);
             if (timeRangeRequest.getFrom() != null && timeRangeRequest.getTo() != null) {
+                log.info("timeRangeRequest: {} - {}", timeRangeRequest, timeRangeRequest.getFrom());
                 return cb.between(
                         root.get("createdAt"),
-                        timeRangeRequest.getFrom().atStartOfDay(),
-                        timeRangeRequest.getTo().atTime(23, 59, 59)
+                        timeRangeRequest.getFrom(),
+                        timeRangeRequest.getTo()
                 );
             } else if (timeRangeRequest.getFrom() != null) {
-                return cb.greaterThanOrEqualTo(root.get("createdAt"), timeRangeRequest.getFrom().atStartOfDay());
+                return cb.greaterThanOrEqualTo(root.get("createdAt"), timeRangeRequest.getFrom());
             } else if (timeRangeRequest.getTo() != null) {
-                return cb.lessThanOrEqualTo(root.get("createdAt"), timeRangeRequest.getTo().atTime(23, 59, 59));
+                return cb.lessThanOrEqualTo(root.get("createdAt"), timeRangeRequest.getTo());
             } else {
                 return null;
             }
         };
     }
 
-    public static Specification<Submission> hasProgrammingLanguages(List<Integer> programmingLanguageIds) {
+    public static Specification<Submission> hasProgrammingLanguages(List<ProgrammingLanguage> pgs) {
         return (root, query, cb) -> {
-            if (programmingLanguageIds == null || programmingLanguageIds.isEmpty()) {
-                return null;
-            }
-            return root.get("programmingLanguage").get("programmingLanguageId").in(programmingLanguageIds);
+            if (pgs.isEmpty()) return null;
+
+            return root.get("programmingLanguage").in(pgs);
         };
     }
 

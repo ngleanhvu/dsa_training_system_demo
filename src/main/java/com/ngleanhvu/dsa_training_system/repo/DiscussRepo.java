@@ -26,7 +26,9 @@ public interface DiscussRepo extends JpaRepository<Discuss, Integer>, JpaSpecifi
            CASE WHEN dv.user_id IS NULL THEN 0 ELSE 1 END AS is_up_vote
     FROM discuss d
     JOIN users u ON u.user_id = d.user_id
-    LEFT JOIN discusses_votes dv ON dv.discuss_id = d.discuss_id AND dv.user_id = :userId
+    LEFT JOIN discusses_votes dv 
+           ON dv.discuss_id = d.discuss_id 
+          AND dv.user_id = :userId
     WHERE d.title LIKE CONCAT('%', :keyword, '%')
     """,
             countQuery = """
@@ -38,6 +40,7 @@ public interface DiscussRepo extends JpaRepository<Discuss, Integer>, JpaSpecifi
     Page<Object[]> findDiscussesWithUser(@Param("keyword") String keyword,
                                          @Param("userId") String userId,
                                          Pageable pageable);
+
 
 
     @Query("SELECT COUNT(d) FROM Discuss d WHERE d.user.email= :email")
@@ -55,11 +58,14 @@ public interface DiscussRepo extends JpaRepository<Discuss, Integer>, JpaSpecifi
            u.avatar,
            CASE WHEN dv.user_id IS NULL THEN 0 ELSE 1 END AS is_up_vote
     FROM discuss d
-    LEFT JOIN discusses_votes dv ON dv.discuss_id = d.discuss_id AND dv.user_id = :userId
+    LEFT JOIN discusses_votes dv 
+           ON dv.discuss_id = d.discuss_id 
+          AND dv.user_id = :userId
     JOIN users u ON u.user_id = d.user_id
     WHERE d.discuss_id = :discussId
-""", nativeQuery = true)
+    """, nativeQuery = true)
     List<Object[]> findByDiscussWithCredential(@Param("discussId") Integer discussId,
-                                                         @Param("userId") String userId);
+                                               @Param("userId") String userId);
+
 
 }

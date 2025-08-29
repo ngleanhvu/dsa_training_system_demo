@@ -19,6 +19,14 @@ public interface ProblemRepo extends JpaRepository<Problem, Integer>, JpaSpecifi
 """, nativeQuery = true)
     List<Object[]> getDifficultyStats();
 
+    @Query(value = """
+    SELECT COUNT(DISTINCT s.problem_id)
+    FROM submissions s
+    WHERE s.user_id = :userId 
+    AND s.submission_status = 'Accepted'
+""", nativeQuery = true)
+    long countSolvedProblems(@Param("userId") String userId);
+
 
     @Query(value = """
     SELECT p.problem_id, p.title, COUNT(s.problem_id)

@@ -34,14 +34,14 @@ public interface SubmissionRepo extends JpaRepository<Submission, Integer>, JpaS
     @Query(value = """
     SELECT p.name AS programming_language_name,
         COUNT(*) AS total_submission,
-        COUNT(IF(s.submission_status = 'Accepted' AND u.email = :email, 1, NULL)) AS total_accepted
+        COUNT(IF(s.submission_status = 'Accepted' AND u.user_id = :userId, 1, NULL)) AS total_accepted
     FROM submissions s
     JOIN programming_languages p ON s.programming_language_id = p.programming_language_id
     JOIN users u ON s.user_id = u.user_id
-    WHERE u.email = :email
+    WHERE u.user_id = :userId
     GROUP BY p.name
 """, nativeQuery = true)
-    List<ProgrammingStat> statisticSubmissionByProgrammingLanguageAndUserEmail(@Param("email") String email);
+    List<ProgrammingStat> statisticSubmissionByProgrammingLanguageAndUserEmail(@Param("userId") String userId);
 
 
     @Query(value = """

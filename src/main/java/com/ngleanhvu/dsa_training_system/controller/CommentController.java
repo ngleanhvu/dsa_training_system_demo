@@ -1,5 +1,6 @@
 package com.ngleanhvu.dsa_training_system.controller;
 
+import com.ngleanhvu.dsa_training_system.constant.ValueConst;
 import com.ngleanhvu.dsa_training_system.dto.request.CommentRequest;
 import com.ngleanhvu.dsa_training_system.dto.request.CommentUpdateRequest;
 import com.ngleanhvu.dsa_training_system.dto.response.ApiResponse;
@@ -32,7 +33,6 @@ public class CommentController {
 
         String userId = jwtUtil.getUserIdFromToken(token);
         request.setUserId(userId);
-
         commentService.createComment(request, discussId);
         var response = ApiResponse.builder()
                 .message("Comment create success")
@@ -67,20 +67,13 @@ public class CommentController {
                                                                 @RequestParam(required = false, defaultValue = "desc") String sortDir,
                                                                 @RequestHeader("Authorization") String token) {
         String userId = jwtUtil.getUserIdFromToken(token);
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(changeSortBy(sortBy));
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(AppUtil.changeSortBy(sortBy), sortDir, Math.max(page-1,0), size);
         var response = commentService.getCommentsByParentCommentWithUser(parentCommentId, userId, pagingSearch);
-        log.info("response: {}", response);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
                 .message("Comment get success")
                 .build();
-
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
@@ -90,16 +83,8 @@ public class CommentController {
                                               @RequestParam(required = false, defaultValue = "1") int page,
                                               @RequestParam(required = false, defaultValue = "5") int size,
                                               @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
-        log.info("pagingSearch = {}", pagingSearch);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var response = commentService.getChildCommentsByParentComment(parentCommentId, pagingSearch);
-        log.info("response: {}", response);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
@@ -115,15 +100,8 @@ public class CommentController {
                                                @RequestParam(required = false, defaultValue = "1") int page,
                                                @RequestParam(required = false, defaultValue = "5") int size,
                                                @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(Math.max(0, page - 1));
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
-        log.info("pagingSearch = {}", pagingSearch);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var response = commentService.getCommentsByProblem(problemId, pagingSearch, null);
-        log.info("response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
@@ -139,17 +117,9 @@ public class CommentController {
                                                @RequestParam(required = false, defaultValue = "5") int size,
                                                @RequestParam(required = false, defaultValue = "desc") String sortDir,
                                                @RequestHeader("Authorization") String token) {
-        log.info("credentials");
         String userId = jwtUtil.getUserIdFromToken(token);
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(changeSortBy(sortBy));
-        pagingSearch.setPage(Math.max(0, page - 1));
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
-        log.info("pagingSearch = {}", pagingSearch);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(AppUtil.changeSortBy(sortBy), sortDir, Math.max(page-1,0), size);
         var response = commentService.getCommentsByProblem(problemId, pagingSearch, userId);
-        log.info("response: {}", response);
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
@@ -165,22 +135,13 @@ public class CommentController {
                                         @RequestParam(required = false, defaultValue = "1") int page,
                                         @RequestParam(required = false, defaultValue = "5") int size,
                                         @RequestParam(required = false, defaultValue = "desc") String sortDir) {
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(sortBy);
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(sortBy, sortDir, Math.max(page-1,0), size);
         var response = commentService.getCommentsByDiscuss(discussId, pagingSearch);
-
-        log.info("response: {}", response);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
                 .message("Comment get success")
                 .build();
-
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
@@ -192,22 +153,13 @@ public class CommentController {
                                         @RequestParam(required = false, defaultValue = "desc") String sortDir,
                                         @RequestHeader("Authorization") String token) {
         String userId = jwtUtil.getUserIdFromToken(token);
-        PagingSearch pagingSearch = new PagingSearch();
-        pagingSearch.setSortBy(changeSortBy(sortBy));
-        pagingSearch.setPage(page > 0 ? page - 1 : 0);
-        pagingSearch.setSize(size);
-        pagingSearch.setDirection(sortDir);
-
+        PagingSearch pagingSearch = AppUtil.toPagingSearch(AppUtil.changeSortBy(sortBy), sortDir, Math.max(page-1,0), size);
         var response = commentService.getCommentsByDiscussWithCredential(discussId, userId, pagingSearch);
-
-        log.info("response: {}", response);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .metadata(response)
                 .message("Comment get success")
                 .build();
-
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
@@ -219,15 +171,12 @@ public class CommentController {
 
         String userId = jwtUtil.getUserIdFromToken(token);
         request.setUserId(userId);
-
         commentService.updateComment(commentId, request);
-
         var response = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .message("Comment update success")
                 .metadata(null)
                 .build();
-
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -237,15 +186,12 @@ public class CommentController {
                                            @RequestHeader("Authorization") String token) {
 
         String userId = jwtUtil.getUserIdFromToken(token);
-
         commentService.deleteComment(commentId, userId);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.NO_CONTENT.name())
                 .message("Comment delete success")
                 .metadata(null)
                 .build();
-
         return new ResponseEntity<>(apiResponse, HttpStatus.NO_CONTENT);
     }
 
@@ -253,22 +199,14 @@ public class CommentController {
     @PostMapping("/{commentId}/toggle")
     public ResponseEntity<?> toggleVote(@RequestHeader("Authorization") String token,
                                         @PathVariable("commentId") Integer commentId) {
-        log.info("commentId for toggle = {}", commentId);
         String userId = jwtUtil.getUserIdFromToken(token);
-        log.info("userId for toggle = {}", userId);
-
         commentService.toggleVote(userId, commentId);
-
         var apiResponse = ApiResponse.builder()
                 .status(HttpStatus.OK.name())
                 .message("Comment toggle success")
                 .metadata(null)
                 .build();
-
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
-    private String changeSortBy(String sortOrder) {
-        return AppUtil.changeSortBy(sortOrder);
-    }
 }
