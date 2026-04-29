@@ -260,7 +260,7 @@ This project is licensed under the [LICENSE_NAME](LICENSE) - see the LICENSE fil
 
 ## 📞 Support & Contact
 
--   📧 Email: [contact@example.com] <!-- TODO: Add actual contact email -->
+-   📧 Email: [vunguyen.0208200402@gmail.com] <!-- TODO: Add actual contact email -->
 -   🐛 Issues: [GitHub Issues](https://github.com/ngleanhvu/dsa_training_system_demo/issues)
 -   💬 Discussions: [GitHub Discussions](https://github.com/ngleanhvu/dsa_training_system_demo/discussions) <!-- TODO: Enable GitHub Discussions if desired -->
 
